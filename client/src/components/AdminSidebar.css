@@ -1,0 +1,95 @@
+.admin-sidebar {
+    width: 280px;
+    height: 100vh;
+    background-color: #ffffff;
+    color: #1a1a1a;
+    position: fixed;
+    top: 0;
+    left: 0;
+    display: flex;
+    flex-direction: column;
+    padding: 40px 0;
+    z-index: 1000;
+    box-shadow: 2px 0 20px rgba(0, 0, 0, 0.05);
+    border-right: 1px solid #f0f0f0;
+}
+
+.admin-logo {
+    padding: 0 40px 40px;
+    margin-bottom: 20px;
+}
+
+.admin-logo h2 {
+    font-family: 'Playfair Display', serif;
+    font-size: 1.6rem;
+    letter-spacing: 1px;
+    font-weight: 700;
+    color: #000;
+}
+
+.admin-logo span {
+    font-size: 0.8rem;
+    font-family: 'Inter', sans-serif;
+    color: #999;
+    text-transform: uppercase;
+    display: block;
+    letter-spacing: 4px;
+    margin-top: 4px;
+}
+
+.admin-nav {
+    display: flex;
+    flex-direction: column;
+    padding: 0 20px;
+}
+
+.nav-item {
+    padding: 16px 20px;
+    color: #666;
+    text-decoration: none;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    font-size: 0.95rem;
+    font-weight: 500;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    border-radius: 12px;
+    margin-bottom: 4px;
+}
+
+.nav-item .icon {
+    font-size: 1.3rem;
+    filter: grayscale(1);
+    transition: all 0.3s;
+}
+
+.nav-item:hover {
+    background-color: #f8f9fa;
+    color: #000;
+}
+
+.nav-item.active {
+    background-color: #f0f0f0;
+    color: #000;
+    font-weight: 600;
+}
+
+.nav-item.active .icon {
+    filter: none;
+}
+
+.sidebar-divider {
+    height: 1px;
+    background-color: #f0f0f0;
+    margin: 30px 20px;
+}
+
+.back-btn {
+    margin-top: auto;
+    color: #999;
+}
+
+.back-btn:hover {
+    color: #d32f2f;
+    background-color: #fff1f0;
+}

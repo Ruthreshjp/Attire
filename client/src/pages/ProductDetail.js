@@ -133,15 +133,6 @@ const ProductDetail = () => {
             <Navbar />
 
             <div className="product-detail-container">
-                {/* Breadcrumb */}
-                <div className="breadcrumb">
-                    <Link to="/">Home</Link>
-                    <span>/</span>
-                    <Link to="/products">Products</Link>
-                    <span>/</span>
-                    <span>{product.name}</span>
-                </div>
-
                 <div className="product-detail-content">
                     {/* Product Images */}
                     <div className="product-images">

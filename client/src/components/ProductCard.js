@@ -1,13 +1,29 @@
-import React, { useState } from 'react';
-import { Link } from 'react-router-dom';
+import React, { useState, useContext } from 'react';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
+import { AuthContext } from '../context/AuthContext';
 
 const ProductCard = ({ product }) => {
     const [isWishlisted, setIsWishlisted] = useState(false);
+    const { user } = useContext(AuthContext);
+    const navigate = useNavigate();
+    const location = useLocation();
 
-    const handleWishlist = (e) => {
+    const handleProtectedAction = (e, actionType) => {
         e.preventDefault();
         e.stopPropagation();
-        setIsWishlisted(!isWishlisted);
+
+        if (!user) {
+            navigate('/login', { state: { from: location.pathname } });
+            return;
+        }
+
+        if (actionType === 'wishlist') {
+            setIsWishlisted(!isWishlisted);
+        } else if (actionType === 'cart') {
+            alert('Added to cart!');
+        } else if (actionType === 'buy') {
+            navigate('/cart');
+        }
     };
 
     // Use images array if available, otherwise fallback
@@ -35,16 +51,12 @@ const ProductCard = ({ product }) => {
                 )}
                 <button
                     className={`wishlist-btn ${isWishlisted ? 'active' : ''}`}
-                    onClick={handleWishlist}
+                    onClick={(e) => handleProtectedAction(e, 'wishlist')}
                 >
                     <svg width="20" height="20" viewBox="0 0 24 24" fill={isWishlisted ? "currentColor" : "none"} stroke="currentColor" strokeWidth="2">
                         <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
                     </svg>
                 </button>
-                <div className="product-overlay">
-                    <button className="quick-view-btn">Quick View</button>
-                    <button className="add-to-cart-btn">Add to Cart</button>
-                </div>
             </div>
 
             <div className="product-info">
@@ -95,10 +107,54 @@ const ProductCard = ({ product }) => {
                     </div>
                 )}
 
-                <button className="info-add-to-cart-btn">
-                    Add to Cart
-                </button>
+                <div className="product-action-buttons">
+                    <button
+                        className="buy-now-btn-card"
+                        onClick={(e) => handleProtectedAction(e, 'buy')}
+                    >
+                        Buy Now
+                    </button>
+                    <button
+                        className="add-to-cart-btn-card"
+                        onClick={(e) => handleProtectedAction(e, 'cart')}
+                    >
+                        Add to Cart
+                    </button>
+                </div>
             </div>
+
+            <style>{`
+                .product-action-buttons {
+                    display: flex;
+                    flex-direction: column;
+                    gap: 8px;
+                    margin-top: 15px;
+                }
+                .buy-now-btn-card, .add-to-cart-btn-card {
+                    width: 100%;
+                    padding: 10px;
+                    border-radius: 6px;
+                    font-weight: 600;
+                    cursor: pointer;
+                    transition: all 0.2s;
+                    border: none;
+                }
+                .buy-now-btn-card {
+                    background: #1a1a1a;
+                    color: white;
+                }
+                .buy-now-btn-card:hover {
+                    background: #333;
+                }
+                .add-to-cart-btn-card {
+                    background: transparent;
+                    color: #1a1a1a;
+                    border: 1px solid #1a1a1a;
+                }
+                .add-to-cart-btn-card:hover {
+                    background: #f5f5f5;
+                }
+            `}</style>
         </div>
     );
 };

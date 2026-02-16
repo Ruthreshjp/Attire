@@ -48,6 +48,14 @@ const Navbar = ({ onSearch, onFilter }) => {
     setIsFilterOpen(false);
   };
 
+  const handleProtectedAction = (path) => {
+    if (!user) {
+      navigate('/login', { state: { from: path } });
+    } else {
+      navigate(path);
+    }
+  };
+
   return (
     <nav className="navbar">
       <div className="navbar-container">
@@ -146,31 +154,42 @@ const Navbar = ({ onSearch, onFilter }) => {
             </svg>
           </button>
 
-          <Link to="/wishlist" className="wishlist-icon">
+          <div
+            onClick={() => handleProtectedAction('/wishlist')}
+            className="wishlist-icon"
+            style={{ cursor: 'pointer' }}
+          >
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
               <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
             </svg>
             {wishlistCount > 0 && <span className="wishlist-badge">{wishlistCount}</span>}
-          </Link>
+          </div>
 
-          <Link to="/cart" className="cart-icon">
+          <div
+            onClick={() => handleProtectedAction('/cart')}
+            className="cart-icon"
+            style={{ cursor: 'pointer' }}
+          >
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
               <circle cx="9" cy="21" r="1" />
               <circle cx="20" cy="21" r="1" />
               <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6" />
             </svg>
             {cartCount > 0 && <span className="cart-badge">{cartCount}</span>}
-          </Link>
+          </div>
 
-          {user && (
-            <Link to="/my-orders" className="orders-icon" title="My Orders">
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z" />
-                <polyline points="3.27 6.96 12 12.01 20.73 6.96" />
-                <line x1="12" y1="22.08" x2="12" y2="12" />
-              </svg>
-            </Link>
-          )}
+          <div
+            onClick={() => handleProtectedAction('/my-orders')}
+            className="orders-icon"
+            title="My Orders"
+            style={{ cursor: 'pointer' }}
+          >
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z" />
+              <polyline points="3.27 6.96 12 12.01 20.73 6.96" />
+              <line x1="12" y1="22.08" x2="12" y2="12" />
+            </svg>
+          </div>
 
           {user ? (
             <div className="user-nav-actions">

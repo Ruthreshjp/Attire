@@ -24,7 +24,7 @@ router.get('/:pageName', async (req, res) => {
 // @desc    Create or update page content
 // @access  Private/Admin
 router.post('/', [auth, admin], async (req, res) => {
-    const { pageName, hero, sections, values, cta } = req.body;
+    const { pageName, hero, sections, values, cta, carousel } = req.body;
 
     try {
         let content = await PageContent.findOne({ pageName });
@@ -33,7 +33,7 @@ router.post('/', [auth, admin], async (req, res) => {
             // Update
             content = await PageContent.findOneAndUpdate(
                 { pageName },
-                { $set: { hero, sections, values, cta, lastUpdated: Date.now() } },
+                { $set: { hero, sections, values, cta, carousel, lastUpdated: Date.now() } },
                 { new: true }
             );
             return res.json(content);
@@ -45,7 +45,8 @@ router.post('/', [auth, admin], async (req, res) => {
             hero,
             sections,
             values,
-            cta
+            cta,
+            carousel
         });
 
         await content.save();

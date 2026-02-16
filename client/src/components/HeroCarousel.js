@@ -1,36 +1,45 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import Slider from 'react-slick';
 import { Link } from 'react-router-dom';
 
 
 const HeroCarousel = () => {
-    // Sample data - will be replaced with admin-added content
-    const slides = [
-        {
-            id: 1,
-            image: 'https://images.unsplash.com/photo-1490481651871-ab68de25d43d?w=1600&q=80',
-            title: 'New Season Collection',
-            subtitle: 'Discover the latest trends',
-            buttonText: 'Shop Now',
-            link: '/products?category=new-arrivals'
-        },
-        {
-            id: 2,
-            image: 'https://images.unsplash.com/photo-1483985988355-763728e1935b?w=1600&q=80',
-            title: 'Summer Sale',
-            subtitle: 'Up to 50% off on selected items',
-            buttonText: 'Explore Deals',
-            link: '/products?category=sale'
-        },
-        {
-            id: 3,
-            image: 'https://images.unsplash.com/photo-1445205170230-053b83016050?w=1600&q=80',
-            title: 'Premium Quality',
-            subtitle: 'Crafted with excellence',
-            buttonText: 'View Collection',
-            link: '/collections'
-        }
-    ];
+    const [slides, setSlides] = useState([]);
+
+    useEffect(() => {
+        const fetchSlides = async () => {
+            try {
+                const response = await fetch('http://localhost:5000/api/content/home');
+                const data = await response.json();
+                if (response.ok && data.carousel && data.carousel.length > 0) {
+                    setSlides(data.carousel.filter(s => s.isActive !== false));
+                } else {
+                    // Fallback to defaults if no backend content
+                    setSlides([
+                        {
+                            id: 1,
+                            image: 'https://images.unsplash.com/photo-1490481651871-ab68de25d43d?w=1600&q=80',
+                            title: 'New Season Collection',
+                            subtitle: 'Discover the latest trends',
+                            buttonText: 'Shop Now',
+                            link: '/products?category=new-arrivals'
+                        },
+                        {
+                            id: 2,
+                            image: 'https://images.unsplash.com/photo-1483985988355-763728e1935b?w=1600&q=80',
+                            title: 'Summer Sale',
+                            subtitle: 'Up to 50% off on selected items',
+                            buttonText: 'Explore Deals',
+                            link: '/products?category=sale'
+                        }
+                    ]);
+                }
+            } catch (err) {
+                console.error('Error fetching carousel:', err);
+            }
+        };
+        fetchSlides();
+    }, []);
 
     const settings = {
         dots: true,

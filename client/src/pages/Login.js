@@ -1,5 +1,5 @@
 import React, { useState, useContext } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { useNavigate, Link, useLocation } from 'react-router-dom';
 import Navbar from '../components/Navbar';
 import { AuthContext } from '../context/AuthContext';
 
@@ -13,6 +13,7 @@ const Login = () => {
 
     const { login } = useContext(AuthContext);
     const navigate = useNavigate();
+    const location = useLocation();
 
     const { email, password } = formData;
 
@@ -36,11 +37,8 @@ const Login = () => {
 
             if (data.success) {
                 login(data);
-                if (data.user.role === 1) {
-                    navigate('/admin');
-                } else {
-                    navigate('/');
-                }
+                const from = location.state?.from || (data.user.role === 1 ? '/admin' : '/');
+                navigate(from, { replace: true });
             } else {
                 setError(data.message || 'Login failed');
             }

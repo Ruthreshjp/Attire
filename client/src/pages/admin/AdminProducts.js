@@ -6,6 +6,8 @@ const AdminProducts = () => {
     const [products, setProducts] = useState([]);
     const [loading, setLoading] = useState(true);
     const [isAdding, setIsAdding] = useState(false);
+    const [isEditing, setIsEditing] = useState(false);
+    const [editingId, setEditingId] = useState(null);
 
     const [newProduct, setNewProduct] = useState({
         name: '',
@@ -15,7 +17,8 @@ const AdminProducts = () => {
         originalPrice: '',
         price: '', // This will be the discounted price
         stock: '',
-        images: [{ url: '', alt: '' }],
+        images: [{ url: '', alt: '', uploadMethod: 'url' }],
+        tryOnImage: { url: '', uploadMethod: 'url' },
         colors: [{ name: '', hexCode: '#000000' }],
         sizes: [],
         tags: [],
@@ -61,14 +64,36 @@ const AdminProducts = () => {
     };
 
     const handleAddImage = () => {
-        setNewProduct({ ...newProduct, images: [...newProduct.images, { url: '', alt: '' }] });
+        setNewProduct({ ...newProduct, images: [...newProduct.images, { url: '', alt: '', uploadMethod: 'url' }] });
     };
 
-    const handleImageChange = (index, value) => {
+    const handleImageChange = (index, field, value) => {
         const images = [...newProduct.images];
-        images[index].url = value;
-        images[index].alt = newProduct.name;
+        images[index][field] = value;
+        if (field === 'url') images[index].alt = newProduct.name;
         setNewProduct({ ...newProduct, images });
+    };
+
+    const handleProductImageUpload = (index, e) => {
+        const file = e.target.files[0];
+        if (file) {
+            const reader = new FileReader();
+            reader.onloadend = () => {
+                handleImageChange(index, 'url', reader.result);
+            };
+            reader.readAsDataURL(file);
+        }
+    };
+
+    const handleTryOnImageUpload = (e) => {
+        const file = e.target.files[0];
+        if (file) {
+            const reader = new FileReader();
+            reader.onloadend = () => {
+                setNewProduct({ ...newProduct, tryOnImage: { ...newProduct.tryOnImage, url: reader.result } });
+            };
+            reader.readAsDataURL(file);
+        }
     };
 
     const handleAddColor = () => {
@@ -95,29 +120,66 @@ const AdminProducts = () => {
         const product = {
             ...newProduct,
             category: finalCategory,
-            id: Date.now(),
             discount: calculateDiscount()
         };
 
-        // In a real app, you would send this to the server
         try {
-            const response = await fetch('http://localhost:5000/api/products', {
-                method: 'POST',
+            const url = isEditing
+                ? `http://localhost:5000/api/products/${editingId}`
+                : 'http://localhost:5000/api/products';
+
+            const response = await fetch(url, {
+                method: isEditing ? 'PUT' : 'POST',
                 headers: { 'Content-Type': 'application/json', 'x-auth-token': localStorage.getItem('token') },
                 body: JSON.stringify(product)
             });
             const data = await response.json();
             if (data.success) {
-                setProducts([data.product, ...products]);
-                // Update categories list if new one added
+                if (isEditing) {
+                    setProducts(products.map(p => (p._id === editingId ? data.product : p)));
+                } else {
+                    setProducts([data.product, ...products]);
+                }
+
                 if (!categories.includes(finalCategory)) {
                     setCategories([...categories, finalCategory]);
                 }
                 setIsAdding(false);
+                setIsEditing(false);
+                setEditingId(null);
                 resetForm();
             }
         } catch (err) {
-            console.error('Error adding product:', err);
+            console.error('Error saving product:', err);
+        }
+    };
+
+    const handleEdit = (product) => {
+        setNewProduct({
+            ...product,
+            newCategory: '',
+            images: product.images.map(img => ({ ...img, uploadMethod: 'url' })),
+            tryOnImage: product.tryOnImage || { url: '', uploadMethod: 'url' }
+        });
+        setEditingId(product._id);
+        setIsEditing(true);
+        setIsAdding(true); // Reuse the same modal
+    };
+
+    const handleDelete = async (id) => {
+        if (!window.confirm('Are you sure you want to delete this product?')) return;
+
+        try {
+            const response = await fetch(`http://localhost:5000/api/products/${id}`, {
+                method: 'DELETE',
+                headers: { 'x-auth-token': localStorage.getItem('token') }
+            });
+            const data = await response.json();
+            if (data.success) {
+                setProducts(products.filter(p => p._id !== id));
+            }
+        } catch (err) {
+            console.error('Error deleting product:', err);
         }
     };
 
@@ -130,7 +192,8 @@ const AdminProducts = () => {
             originalPrice: '',
             price: '',
             stock: '',
-            images: [{ url: '', alt: '' }],
+            images: [{ url: '', alt: '', uploadMethod: 'url' }],
+            tryOnImage: { url: '', uploadMethod: 'url' },
             colors: [{ name: '', hexCode: '#000000' }],
             sizes: [],
             tags: [],
@@ -145,20 +208,85 @@ const AdminProducts = () => {
         <div className="admin-layout">
             <AdminSidebar />
             <main className="admin-main">
-                <header className="admin-header">
-                    <div className="header-info">
-                        <h1>Product Catalog</h1>
-                        <p>Manage your inventory and store listings</p>
+                {/* Product List at the Top */}
+                <div className="listing-component-wrapper">
+                    <header className="admin-header split-header">
+                        <div className="header-info">
+                            <h1>Product Catalog</h1>
+                            <p>Manage your inventory and store listings</p>
+                        </div>
+                        <button className="add-btn" onClick={() => setIsAdding(true)}>+ Create New Product</button>
+                    </header>
+
+                    <div className="products-table-container">
+                        <table className="admin-table">
+                            <thead>
+                                <tr>
+                                    <th>Product</th>
+                                    <th>Category</th>
+                                    <th>Pricing</th>
+                                    <th>Stock</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {products.length === 0 ? (
+                                    <tr><td colSpan="5" className="empty-row">No products found in catalog</td></tr>
+                                ) : (
+                                    products.map(p => (
+                                        <tr key={p._id || p.id}>
+                                            <td className="product-cell">
+                                                <div className="product-thumb">
+                                                    {p.images && p.images[0] ? <img src={p.images[0].url} alt="" /> : 'N/A'}
+                                                </div>
+                                                <div className="product-meta">
+                                                    <strong>{p.name}</strong>
+                                                    <span>{p.tags?.join(', ')}</span>
+                                                </div>
+                                            </td>
+                                            <td>{p.category}</td>
+                                            <td>
+                                                <div className="price-display">
+                                                    {p.originalPrice && p.price < p.originalPrice ? (
+                                                        <>
+                                                            <span className="old-p">₹{p.originalPrice}</span>
+                                                            <span className="new-p">₹{p.price}</span>
+                                                        </>
+                                                    ) : (
+                                                        <span className="new-p">₹{p.price || p.originalPrice}</span>
+                                                    )}
+                                                </div>
+                                            </td>
+                                            <td>
+                                                <span className={`stock-status ${p.stock < 10 ? 'low' : ''}`}>
+                                                    {p.stock} in stock
+                                                </span>
+                                            </td>
+                                            <td>
+                                                <div className="action-btns">
+                                                    <button className="icon-btn" onClick={() => handleEdit(p)}>✏️</button>
+                                                    <button className="icon-btn delete" onClick={() => handleDelete(p._id)}>🗑️</button>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    ))
+                                )}
+                            </tbody>
+                        </table>
                     </div>
-                    <button className="add-btn" onClick={() => setIsAdding(true)}>+ Create New Product</button>
-                </header>
+                </div>
 
                 {isAdding && (
                     <div className="admin-modal-overlay">
                         <div className="admin-modal wide">
                             <div className="modal-header">
-                                <h2>List New Product</h2>
-                                <button className="close-btn" onClick={() => setIsAdding(false)}>×</button>
+                                <h2>{isEditing ? 'Edit Product' : 'List New Product'}</h2>
+                                <button className="close-btn" onClick={() => {
+                                    setIsAdding(false);
+                                    setIsEditing(false);
+                                    setEditingId(null);
+                                    resetForm();
+                                }}>×</button>
                             </div>
 
                             <form onSubmit={handleSubmit} className="admin-form scrollable">
@@ -292,17 +420,105 @@ const AdminProducts = () => {
                                 <section className="form-section">
                                     <h3>Product Visuals</h3>
                                     {newProduct.images.map((img, idx) => (
-                                        <div key={idx} className="form-group">
-                                            <label>Image URL {idx + 1}</label>
-                                            <input
-                                                type="text"
-                                                value={img.url}
-                                                onChange={(e) => handleImageChange(idx, e.target.value)}
-                                                placeholder="https://images.unsplash.com/..."
-                                            />
+                                        <div key={idx} className="image-input-container">
+                                            <div className="upload-tabs">
+                                                <button
+                                                    type="button"
+                                                    className={`tab-btn ${img.uploadMethod === 'url' ? 'active' : ''}`}
+                                                    onClick={() => handleImageChange(idx, 'uploadMethod', 'url')}
+                                                >
+                                                    URL
+                                                </button>
+                                                <button
+                                                    type="button"
+                                                    className={`tab-btn ${img.uploadMethod === 'upload' ? 'active' : ''}`}
+                                                    onClick={() => handleImageChange(idx, 'uploadMethod', 'upload')}
+                                                >
+                                                    Upload
+                                                </button>
+                                            </div>
+
+                                            {img.uploadMethod === 'url' ? (
+                                                <div className="form-group">
+                                                    <label>Image URL {idx + 1}</label>
+                                                    <input
+                                                        type="text"
+                                                        value={img.url}
+                                                        onChange={(e) => handleImageChange(idx, 'url', e.target.value)}
+                                                        placeholder="https://images.unsplash.com/..."
+                                                    />
+                                                </div>
+                                            ) : (
+                                                <div className="form-group">
+                                                    <label>Upload Image {idx + 1}</label>
+                                                    <div className="file-upload-wrapper">
+                                                        <input
+                                                            type="file"
+                                                            accept="image/*"
+                                                            onChange={(e) => handleProductImageUpload(idx, e)}
+                                                            className="file-input"
+                                                            id={`product-img-${idx}`}
+                                                        />
+                                                        <label htmlFor={`product-img-${idx}`} className="file-label">
+                                                            {img.url ? "✓ Image Uploaded" : "📁 Choose Image File"}
+                                                        </label>
+                                                        {img.url && <div className="image-preview-mini"><img src={img.url} alt="" /></div>}
+                                                    </div>
+                                                </div>
+                                            )}
                                         </div>
                                     ))}
                                     <button type="button" className="text-btn" onClick={handleAddImage}>+ Add Another Image</button>
+                                </section>
+
+                                <section className="form-section try-on-section">
+                                    <h3>Virtual Try-On (Beta)</h3>
+                                    <p className="section-hint">Upload a transparent PNG image of the product for virtual try-on features.</p>
+                                    <div className="upload-tabs">
+                                        <button
+                                            type="button"
+                                            className={`tab-btn ${newProduct.tryOnImage.uploadMethod === 'url' ? 'active' : ''}`}
+                                            onClick={() => setNewProduct({ ...newProduct, tryOnImage: { ...newProduct.tryOnImage, uploadMethod: 'url' } })}
+                                        >
+                                            URL
+                                        </button>
+                                        <button
+                                            type="button"
+                                            className={`tab-btn ${newProduct.tryOnImage.uploadMethod === 'upload' ? 'active' : ''}`}
+                                            onClick={() => setNewProduct({ ...newProduct, tryOnImage: { ...newProduct.tryOnImage, uploadMethod: 'upload' } })}
+                                        >
+                                            Upload
+                                        </button>
+                                    </div>
+
+                                    {newProduct.tryOnImage.uploadMethod === 'url' ? (
+                                        <div className="form-group">
+                                            <label>Try-On Image URL</label>
+                                            <input
+                                                type="text"
+                                                value={newProduct.tryOnImage.url}
+                                                onChange={(e) => setNewProduct({ ...newProduct, tryOnImage: { ...newProduct.tryOnImage, url: e.target.value } })}
+                                                placeholder="Link to transparent PNG..."
+                                            />
+                                        </div>
+                                    ) : (
+                                        <div className="form-group">
+                                            <label>Upload Try-On Image</label>
+                                            <div className="file-upload-wrapper">
+                                                <input
+                                                    type="file"
+                                                    accept="image/*"
+                                                    onChange={handleTryOnImageUpload}
+                                                    className="file-input"
+                                                    id="tryon-img-upload"
+                                                />
+                                                <label htmlFor="tryon-img-upload" className="file-label">
+                                                    {newProduct.tryOnImage.url ? "✓ Image Ready" : "📁 Select Try-On Graphic"}
+                                                </label>
+                                                {newProduct.tryOnImage.url && <div className="image-preview-mini"><img src={newProduct.tryOnImage.url} alt="" /></div>}
+                                            </div>
+                                        </div>
+                                    )}
                                 </section>
 
                                 <section className="form-section">
@@ -342,73 +558,79 @@ const AdminProducts = () => {
                                 </section>
 
                                 <div className="form-actions sticky">
-                                    <button type="button" className="cancel-btn" onClick={() => setIsAdding(false)}>Discard Changes</button>
-                                    <button type="submit" className="save-btn large">Publish Product to Store</button>
+                                    <button type="button" className="cancel-btn" onClick={() => {
+                                        setIsAdding(false);
+                                        setIsEditing(false);
+                                        setEditingId(null);
+                                        resetForm();
+                                    }}>Discard Changes</button>
+                                    <button type="submit" className="save-btn large">{isEditing ? 'Save Changes' : 'Publish Product to Store'}</button>
                                 </div>
                             </form>
                         </div>
                     </div>
                 )}
-
-                <div className="products-table-container">
-                    <table className="admin-table">
-                        <thead>
-                            <tr>
-                                <th>Product</th>
-                                <th>Category</th>
-                                <th>Pricing</th>
-                                <th>Stock</th>
-                                <th>Actions</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {products.length === 0 ? (
-                                <tr><td colSpan="5" className="empty-row">No products found in catalog</td></tr>
-                            ) : (
-                                products.map(p => (
-                                    <tr key={p._id || p.id}>
-                                        <td className="product-cell">
-                                            <div className="product-thumb">
-                                                {p.images && p.images[0] ? <img src={p.images[0].url} alt="" /> : 'N/A'}
-                                            </div>
-                                            <div className="product-meta">
-                                                <strong>{p.name}</strong>
-                                                <span>{p.tags?.join(', ')}</span>
-                                            </div>
-                                        </td>
-                                        <td>{p.category}</td>
-                                        <td>
-                                            <div className="price-display">
-                                                {p.originalPrice && p.price < p.originalPrice ? (
-                                                    <>
-                                                        <span className="old-p">₹{p.originalPrice}</span>
-                                                        <span className="new-p">₹{p.price}</span>
-                                                    </>
-                                                ) : (
-                                                    <span className="new-p">₹{p.price || p.originalPrice}</span>
-                                                )}
-                                            </div>
-                                        </td>
-                                        <td>
-                                            <span className={`stock-status ${p.stock < 10 ? 'low' : ''}`}>
-                                                {p.stock} in stock
-                                            </span>
-                                        </td>
-                                        <td>
-                                            <div className="action-btns">
-                                                <button className="icon-btn">✏️</button>
-                                                <button className="icon-btn delete">🗑️</button>
-                                            </div>
-                                        </td>
-                                    </tr>
-                                ))
-                            )}
-                        </tbody>
-                    </table>
-                </div>
             </main>
 
             <style>{`
+                .admin-main {
+                    display: flex;
+                    flex-direction: column;
+                    align-items: center;
+                    padding: 40px;
+                }
+
+                .listing-component-wrapper {
+                    width: 100%;
+                    max-width: 1200px;
+                    display: flex;
+                    flex-direction: column;
+                    gap: 30px;
+                }
+
+                .admin-header.split-header {
+                    display: flex;
+                    justify-content: space-between;
+                    align-items: center;
+                    width: 100%;
+                }
+
+                .products-table-container {
+                    width: 100%;
+                    background: white;
+                    border-radius: 12px;
+                    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+                    overflow: hidden;
+                }
+                .admin-table th, 
+                .admin-table td {
+                    text-align: center !important;
+                    vertical-align: middle;
+                }
+
+                .product-cell {
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    gap: 15px;
+                }
+                
+                .product-meta {
+                    text-align: left;
+                }
+
+                .price-display {
+                    display: flex;
+                    flex-direction: column;
+                    align-items: center;
+                }
+
+                .action-btns {
+                    display: flex;
+                    gap: 10px;
+                    justify-content: center;
+                }
+
                 .admin-modal.wide {
                     max-width: 800px;
                     height: 90vh;
@@ -416,21 +638,44 @@ const AdminProducts = () => {
                     flex-direction: column;
                     padding: 0;
                 }
+
                 .modal-header {
                     padding: 25px 40px;
                     border-bottom: 1px solid #eee;
                     display: flex;
-                    justify-content: space-between;
+                    justify-content: center;
                     align-items: center;
+                    position: relative;
                 }
-                .close-btn { background: none; border: none; font-size: 2rem; cursor: pointer; color: #999; }
+
+                .modal-header h2 {
+                    margin: 0;
+                    font-size: 1.5rem;
+                }
+
+                .close-btn { 
+                    position: absolute;
+                    right: 25px;
+                    background: none; 
+                    border: none; 
+                    font-size: 2rem; 
+                    cursor: pointer; 
+                    color: #999; 
+                }
+
                 .admin-form.scrollable {
                     overflow-y: auto;
                     padding: 30px 40px;
                     flex: 1;
                 }
+
                 .form-section { margin-bottom: 40px; }
-                .form-section h3 { font-size: 1.1rem; margin-bottom: 20px; color: #1a1a1a; }
+                .form-section h3 { 
+                    font-size: 1.1rem; 
+                    margin-bottom: 20px; 
+                    color: #1a1a1a; 
+                    text-align: center;
+                }
                 .dark-bg { background: #f8f9fa; padding: 25px; border-radius: 12px; }
                 .form-grid-triple { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 20px; margin-bottom: 30px; }
                 .price-input { display: flex; align-items: center; border: 1px solid #ddd; border-radius: 6px; overflow: hidden; }
@@ -463,17 +708,15 @@ const AdminProducts = () => {
                 }
                 .save-btn.large { padding: 15px 30px; }
                 
-                .product-cell { display: flex; align-items: center; gap: 15px; }
                 .product-thumb { width: 50px; height: 50px; background: #eee; border-radius: 6px; overflow: hidden; }
                 .product-thumb img { width: 100%; height: 100%; object-fit: cover; }
                 .product-meta span { font-size: 0.75rem; color: #999; display: block; }
                 
-                .price-display { display: flex; flex-direction: column; }
                 .old-p { text-decoration: line-through; color: #999; font-size: 0.8rem; }
                 .new-p { font-weight: 700; }
                 
-                .action-btns { display: flex; gap: 10px; }
                 .empty-row { text-align: center; padding: 50px !important; color: #999; }
+                
                 .special-offer-section { background: #fff8e1; padding: 20px; border-radius: 12px; border: 1px dashed #ffc107; }
                 .toggle-group { display: flex; align-items: center; margin-bottom: 10px; }
                 .toggle-label { display: flex; align-items: center; gap: 10px; cursor: pointer; font-weight: 600; }
@@ -546,6 +789,83 @@ const AdminProducts = () => {
                     border-left: none !important;
                     border-top-left-radius: 0 !important;
                     border-bottom-left-radius: 0 !important;
+                }
+
+                /* Upload Tabs & File Styling */
+                .image-input-container {
+                    background: #fcfcfc;
+                    padding: 15px;
+                    border-radius: 12px;
+                    border: 1px solid #edf2f7;
+                    margin-bottom: 20px;
+                }
+                .upload-tabs {
+                    display: flex;
+                    gap: 8px;
+                    margin-bottom: 12px;
+                }
+                .tab-btn {
+                    flex: 1;
+                    padding: 8px;
+                    background: #f7fafc;
+                    border: 1px solid #e2e8f0;
+                    border-radius: 8px;
+                    font-size: 0.8rem;
+                    font-weight: 600;
+                    color: #718096;
+                    cursor: pointer;
+                    transition: all 0.2s;
+                }
+                .tab-btn.active {
+                    background: #1a1a1a;
+                    color: white;
+                    border-color: #1a1a1a;
+                }
+                .file-upload-wrapper {
+                    display: flex;
+                    align-items: center;
+                    gap: 15px;
+                }
+                .file-input { display: none; }
+                .file-label {
+                    flex: 1;
+                    padding: 12px;
+                    background: white;
+                    border: 2px dashed #cbd5e0;
+                    border-radius: 10px;
+                    text-align: center;
+                    font-weight: 600;
+                    color: #4a5568;
+                    cursor: pointer;
+                    transition: all 0.2s;
+                }
+                .file-label:hover {
+                    border-color: #1a1a1a;
+                    background: #f7fafc;
+                }
+                .image-preview-mini {
+                    width: 50px;
+                    height: 50px;
+                    border-radius: 6px;
+                    overflow: hidden;
+                    border: 1px solid #e2e8f0;
+                    flex-shrink: 0;
+                }
+                .image-preview-mini img {
+                    width: 100%;
+                    height: 100%;
+                    object-fit: cover;
+                }
+                .try-on-section {
+                    background: #ebf8ff;
+                    border: 1px solid #bee3f8;
+                    padding: 25px;
+                    border-radius: 12px;
+                }
+                .section-hint {
+                    font-size: 0.85rem;
+                    color: #2b6cb0;
+                    margin-bottom: 15px;
                 }
             `}</style>
         </div>

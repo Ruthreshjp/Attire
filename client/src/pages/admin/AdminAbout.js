@@ -6,6 +6,11 @@ const AdminAbout = () => {
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
     const [message, setMessage] = useState({ type: '', text: '' });
+    const [uploadMethods, setUploadMethods] = useState({
+        hero: 'url',
+        sections: [], // will be populated after fetch
+        values: ['url', 'url', 'url']
+    });
     const [content, setContent] = useState({
         pageName: 'about',
         hero: { title: '', subtitle: '', image: '' },
@@ -28,11 +33,44 @@ const AdminAbout = () => {
             const data = await response.json();
             if (response.ok) {
                 setContent(data);
+                setUploadMethods({
+                    hero: 'url',
+                    sections: data.sections.map(() => 'url'),
+                    values: data.values.map(() => 'url')
+                });
             }
         } catch (err) {
             console.error('Error fetching content:', err);
         } finally {
             setLoading(false);
+        }
+    };
+
+    const handleFileUpload = (section, index, e) => {
+        const file = e.target.files[0];
+        if (file) {
+            const reader = new FileReader();
+            reader.onloadend = () => {
+                const base64 = reader.result;
+                if (section === 'hero') {
+                    setContent({ ...content, hero: { ...content.hero, image: base64 } });
+                } else if (section === 'sections') {
+                    const newSections = [...content.sections];
+                    newSections[index].image = base64;
+                    setContent({ ...content, sections: newSections });
+                }
+            };
+            reader.readAsDataURL(file);
+        }
+    };
+
+    const toggleUploadMethod = (section, index, method) => {
+        if (section === 'hero') {
+            setUploadMethods({ ...uploadMethods, hero: method });
+        } else if (section === 'sections') {
+            const newMethods = [...uploadMethods.sections];
+            newMethods[index] = method;
+            setUploadMethods({ ...uploadMethods, sections: newMethods });
         }
     };
 
@@ -140,14 +178,26 @@ const AdminAbout = () => {
                                     />
                                 </div>
                                 <div className="form-group full-width">
-                                    <label>Hero Background Image URL</label>
-                                    <input
-                                        type="text"
-                                        name="image"
-                                        value={content.hero.image}
-                                        onChange={handleHeroChange}
-                                        placeholder="https://example.com/image.jpg"
-                                    />
+                                    <label>Hero Image Source</label>
+                                    <div className="upload-tabs">
+                                        <button type="button" className={`tab-btn ${uploadMethods.hero === 'url' ? 'active' : ''}`} onClick={() => toggleUploadMethod('hero', null, 'url')}>URL</button>
+                                        <button type="button" className={`tab-btn ${uploadMethods.hero === 'upload' ? 'active' : ''}`} onClick={() => toggleUploadMethod('hero', null, 'upload')}>Upload</button>
+                                    </div>
+                                    {uploadMethods.hero === 'url' ? (
+                                        <input
+                                            type="text"
+                                            name="image"
+                                            value={content.hero.image}
+                                            onChange={handleHeroChange}
+                                            placeholder="https://example.com/image.jpg"
+                                        />
+                                    ) : (
+                                        <div className="file-upload-wrapper">
+                                            <input type="file" accept="image/*" id="hero-upload" className="file-input" onChange={(e) => handleFileUpload('hero', null, e)} />
+                                            <label htmlFor="hero-upload" className="file-label">{content.hero.image ? "✓ Image Uploaded" : "📁 Choose Hero Image"}</label>
+                                            {content.hero.image && <div className="image-preview-mini"><img src={content.hero.image} alt="" /></div>}
+                                        </div>
+                                    )}
                                 </div>
                             </div>
                         </section>
@@ -176,13 +226,26 @@ const AdminAbout = () => {
                                         ></textarea>
                                     </div>
                                     <div className="form-group full-width">
-                                        <label>Story Image URL</label>
-                                        <input
-                                            type="text"
-                                            name="image"
-                                            value={section.image}
-                                            onChange={(e) => handleSectionChange(index, e)}
-                                        />
+                                        <label>Story Image Source</label>
+                                        <div className="upload-tabs">
+                                            <button type="button" className={`tab-btn ${uploadMethods.sections[index] === 'url' ? 'active' : ''}`} onClick={() => toggleUploadMethod('sections', index, 'url')}>URL</button>
+                                            <button type="button" className={`tab-btn ${uploadMethods.sections[index] === 'upload' ? 'active' : ''}`} onClick={() => toggleUploadMethod('sections', index, 'upload')}>Upload</button>
+                                        </div>
+                                        {uploadMethods.sections[index] === 'url' ? (
+                                            <input
+                                                type="text"
+                                                name="image"
+                                                value={section.image}
+                                                onChange={(e) => handleSectionChange(index, e)}
+                                                placeholder="https://example.com/section.jpg"
+                                            />
+                                        ) : (
+                                            <div className="file-upload-wrapper">
+                                                <input type="file" accept="image/*" id={`section-upload-${index}`} className="file-input" onChange={(e) => handleFileUpload('sections', index, e)} />
+                                                <label htmlFor={`section-upload-${index}`} className="file-label">{section.image ? "✓ Image Uploaded" : "📁 Choose Story Image"}</label>
+                                                {section.image && <div className="image-preview-mini"><img src={section.image} alt="" /></div>}
+                                            </div>
+                                        )}
                                     </div>
                                 </div>
                             </section>
@@ -304,7 +367,67 @@ const AdminAbout = () => {
                     font-weight: 600;
                 }
                 .admin-message.success { background: #e8f5e9; color: #2e7d32; }
+                .admin-message.success { background: #e8f5e9; color: #2e7d32; }
                 .admin-message.error { background: #ffebee; color: #c62828; }
+
+                /* Upload Tabs & File Styling */
+                .upload-tabs {
+                    display: flex;
+                    gap: 8px;
+                    margin-bottom: 12px;
+                }
+                .tab-btn {
+                    flex: 1;
+                    padding: 8px;
+                    background: #f7fafc;
+                    border: 1px solid #e2e8f0;
+                    border-radius: 8px;
+                    font-size: 0.8rem;
+                    font-weight: 600;
+                    color: #718096;
+                    cursor: pointer;
+                    transition: all 0.2s;
+                }
+                .tab-btn.active {
+                    background: #1a1a1a;
+                    color: white;
+                    border-color: #1a1a1a;
+                }
+                .file-upload-wrapper {
+                    display: flex;
+                    align-items: center;
+                    gap: 15px;
+                }
+                .file-input { display: none; }
+                .file-label {
+                    flex: 1;
+                    padding: 12px;
+                    background: white;
+                    border: 2px dashed #cbd5e0;
+                    border-radius: 10px;
+                    text-align: center;
+                    font-weight: 600;
+                    color: #4a5568;
+                    cursor: pointer;
+                    transition: all 0.2s;
+                }
+                .file-label:hover {
+                    border-color: #1a1a1a;
+                    background: #f7fafc;
+                }
+                .image-preview-mini {
+                    width: 50px;
+                    height: 50px;
+                    border-radius: 6px;
+                    overflow: hidden;
+                    border: 1px solid #e2e8f0;
+                    flex-shrink: 0;
+                }
+                .image-preview-mini img {
+                    width: 100%;
+                    height: 100%;
+                    object-fit: cover;
+                }
             `}</style>
         </div>
     );

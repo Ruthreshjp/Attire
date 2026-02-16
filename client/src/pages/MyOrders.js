@@ -11,7 +11,51 @@ const MyOrders = () => {
         { id: '#ORD-7710', amount: 2599, status: 'Delivered', date: 'Feb 01, 2024', items: 2 },
     ]);
 
+    const [selectedOrder, setSelectedOrder] = useState(null);
+
     if (!user) return <div className="loading">Please login to view your orders.</div>;
+
+    if (selectedOrder) {
+        return (
+            <div className="profile-page">
+                <Navbar />
+                <div className="profile-container">
+                    <button className="back-btn" onClick={() => setSelectedOrder(null)}>
+                        &larr; Back to My Orders
+                    </button>
+                    <header className="profile-header">
+                        <div className="profile-info">
+                            <h1>Order {selectedOrder.id}</h1>
+                            <p>Placed on {selectedOrder.date} &bull; {selectedOrder.status}</p>
+                        </div>
+                    </header>
+                    <div className="profile-content">
+                        <div className="profile-card">
+                            <div className="order-details-full">
+                                <h3>Order Summary</h3>
+                                <div className="detail-row">
+                                    <span>Status:</span>
+                                    <span className={`status-tag ${selectedOrder.status.toLowerCase()}`}>{selectedOrder.status}</span>
+                                </div>
+                                <div className="detail-row">
+                                    <span>Total Amount:</span>
+                                    <span className="total-price">₹{selectedOrder.amount.toLocaleString()}</span>
+                                </div>
+                                <div className="detail-row">
+                                    <span>Total Items:</span>
+                                    <span>{selectedOrder.items}</span>
+                                </div>
+                                <div className="order-items-minimal">
+                                    <h4>Items in this order</h4>
+                                    <p>Sample item details would appear here...</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        );
+    }
 
     return (
         <div className="profile-page">
@@ -59,7 +103,12 @@ const MyOrders = () => {
                                                 <span className="total-price">₹{order.amount.toLocaleString()}</span>
                                             </div>
                                             <div className="summary-col actions">
-                                                <button className="view-order-btn">View Details</button>
+                                                <button
+                                                    className="view-order-btn"
+                                                    onClick={() => setSelectedOrder(order)}
+                                                >
+                                                    View Details
+                                                </button>
                                             </div>
                                         </div>
                                     </div>
@@ -169,6 +218,45 @@ const MyOrders = () => {
                         gap: 15px;
                     }
                     .summary-col.actions { align-items: flex-start; }
+                }
+
+                .back-btn {
+                    background: transparent;
+                    border: none;
+                    color: #666;
+                    font-weight: 600;
+                    cursor: pointer;
+                    margin-bottom: 20px;
+                    display: flex;
+                    align-items: center;
+                    gap: 8px;
+                    padding: 0;
+                    transition: color 0.2s;
+                }
+                .back-btn:hover {
+                    color: #1a1a1a;
+                }
+                .order-details-full {
+                    padding: 10px;
+                }
+                .detail-row {
+                    display: flex;
+                    justify-content: space-between;
+                    padding: 12px 0;
+                    border-bottom: 1px solid #eee;
+                }
+                .detail-row span:first-child {
+                    color: #666;
+                    font-weight: 500;
+                }
+                .order-items-minimal {
+                    margin-top: 30px;
+                }
+                .order-items-minimal h4 {
+                    margin-bottom: 15px;
+                    border-bottom: 2px solid #1a1a1a;
+                    display: inline-block;
+                    padding-bottom: 5px;
                 }
             `}</style>
         </div>

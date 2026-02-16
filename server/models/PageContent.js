@@ -25,6 +25,14 @@ const PageContentSchema = new mongoose.Schema({
         title: String,
         description: String
     },
+    carousel: [{
+        image: String,
+        title: String,
+        subtitle: String,
+        buttonText: String,
+        link: String,
+        isActive: Boolean
+    }],
     lastUpdated: {
         type: Date,
         default: Date.now

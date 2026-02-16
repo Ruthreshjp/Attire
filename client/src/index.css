@@ -226,8 +226,7 @@ img {
 .navbar {
   background-color: var(--primary-white);
   box-shadow: var(--shadow-sm);
-  position: sticky;
-  top: 0;
+  position: static;
   z-index: 1000;
   border-bottom: 1px solid var(--border-light);
 }

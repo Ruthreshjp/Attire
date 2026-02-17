@@ -27,7 +27,9 @@ const ProductCard = ({ product }) => {
     };
 
     // Use images array if available, otherwise fallback
-    const displayImage = product.images && product.images[0] ? product.images[0].url : product.image;
+    const displayImage = product.images && product.images[0]
+        ? (typeof product.images[0] === 'string' ? product.images[0] : product.images[0].url)
+        : product.image;
 
     // Calculate discount percentage if original price is available
     const hasDiscount = product.originalPrice && product.price < product.originalPrice;

@@ -904,11 +904,14 @@ img {
 .offer-image-container {
   position: relative;
   width: 100%;
-  height: 280px;
+  padding-top: 125%;
   overflow: hidden;
 }
 
 .offer-image {
+  position: absolute;
+  top: 0;
+  left: 0;
   width: 100%;
   height: 100%;
   object-fit: cover;
@@ -916,19 +919,19 @@ img {
 }
 
 .offer-card:hover .offer-image {
-  transform: scale(1.1);
+  transform: none;
 }
 
 .offer-badge {
   position: absolute;
-  top: 20px;
-  right: 20px;
+  top: 15px;
+  right: 15px;
   background-color: var(--text-primary);
   color: var(--primary-white);
-  padding: 0.75rem 1.25rem;
-  font-size: 1.1rem;
+  padding: 0.5rem 0.8rem;
+  font-size: 0.85rem;
   font-weight: 700;
-  border-radius: 8px;
+  border-radius: 6px;
   box-shadow: var(--shadow-md);
   z-index: 10;
 }
@@ -938,9 +941,9 @@ img {
 }
 
 .offer-title {
-  font-size: 1.4rem;
+  font-size: 1.1rem;
   font-weight: 600;
-  margin-bottom: 0.5rem;
+  margin-bottom: 0.4rem;
   color: var(--text-primary);
 }
 

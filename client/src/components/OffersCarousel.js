@@ -14,7 +14,9 @@ const OffersCarousel = () => {
                 const data = await response.json();
                 if (data.success) {
                     const specialOffers = data.products.filter(p => p.isSpecialOffer);
-                    setOffers(specialOffers);
+                    // Ensure unique products by _id
+                    const uniqueOffers = Array.from(new Map(specialOffers.map(item => [item['_id'], item])).values());
+                    setOffers(uniqueOffers);
                 }
             } catch (err) {
                 console.error('Error fetching special offers:', err);
@@ -27,28 +29,47 @@ const OffersCarousel = () => {
 
     const settings = {
         dots: false,
-        infinite: true,
+        infinite: offers.length > 5,
         speed: 600,
-        slidesToShow: 3,
+        slidesToShow: 5,
         slidesToScroll: 1,
-        autoplay: true,
+        autoplay: offers.length > 5,
         autoplaySpeed: 4000,
         pauseOnHover: true,
         arrows: true,
         responsive: [
             {
-                breakpoint: 1024,
+                breakpoint: 1400,
                 settings: {
-                    slidesToShow: 2,
-                    slidesToScroll: 1
+                    slidesToShow: 4,
+                    infinite: offers.length > 4,
+                    autoplay: offers.length > 4
                 }
             },
             {
-                breakpoint: 640,
+                breakpoint: 1024,
+                settings: {
+                    slidesToShow: 3,
+                    infinite: offers.length > 3,
+                    autoplay: offers.length > 3
+                }
+            },
+            {
+                breakpoint: 768,
+                settings: {
+                    slidesToShow: 2,
+                    infinite: offers.length > 2,
+                    autoplay: offers.length > 2
+                }
+            },
+            {
+                breakpoint: 576,
                 settings: {
                     slidesToShow: 1,
                     slidesToScroll: 1,
-                    arrows: false
+                    arrows: false,
+                    infinite: offers.length > 1,
+                    autoplay: offers.length > 1
                 }
             }
         ]
@@ -71,7 +92,7 @@ const OffersCarousel = () => {
                             <div className="offer-card">
                                 <div className="offer-image-container">
                                     <img
-                                        src={offer.images && offer.images[0] ? offer.images[0].url : offer.image}
+                                        src={offer.images && offer.images[0] ? (typeof offer.images[0] === 'string' ? offer.images[0] : offer.images[0].url) : offer.image}
                                         alt={offer.name}
                                         className="offer-image"
                                     />

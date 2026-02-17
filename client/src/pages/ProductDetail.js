@@ -1,6 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useContext } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import Navbar from '../components/Navbar';
+import { AuthContext } from '../context/AuthContext';
 
 
 const ProductDetail = () => {
@@ -14,6 +15,7 @@ const ProductDetail = () => {
     const [quantity, setQuantity] = useState(1);
     const [isWishlisted, setIsWishlisted] = useState(false);
     const [showReviewForm, setShowReviewForm] = useState(false);
+    const { user } = useContext(AuthContext);
 
     // Sample product data - will be fetched from API
     const productData = {
@@ -79,13 +81,29 @@ const ProductDetail = () => {
     };
 
     useEffect(() => {
-        // Simulate API call
-        setTimeout(() => {
-            setProduct(productData);
-            setSelectedColor(productData.colors[0].hex);
-            setLoading(false);
-        }, 800);
+        const fetchProduct = async () => {
+            try {
+                const response = await fetch(`http://localhost:5000/api/products/${id}`);
+                const data = await response.json();
+                if (data.success) {
+                    setProduct(data.product);
+                    if (data.product.colors && data.product.colors.length > 0) {
+                        setSelectedColor(data.product.colors[0].hexCode || data.product.colors[0].hex || '');
+                    }
+                }
+            } catch (err) {
+                console.error('Error fetching product:', err);
+            } finally {
+                setLoading(false);
+            }
+        };
+        fetchProduct();
     }, [id]);
+
+    const getImageUrl = (img) => {
+        if (!img) return '';
+        return typeof img === 'string' ? img : img.url;
+    };
 
     const handleAddToCart = () => {
         if (!selectedSize) {
@@ -137,7 +155,7 @@ const ProductDetail = () => {
                     {/* Product Images */}
                     <div className="product-images">
                         <div className="main-image">
-                            <img src={product.images[selectedImage]} alt={product.name} />
+                            <img src={getImageUrl(product.images[selectedImage])} alt={product.name} />
                             <button
                                 className={`wishlist-btn-large ${isWishlisted ? 'active' : ''}`}
                                 onClick={handleWishlist}
@@ -148,13 +166,13 @@ const ProductDetail = () => {
                             </button>
                         </div>
                         <div className="image-thumbnails">
-                            {product.images.map((img, index) => (
+                            {(product.images || []).map((img, index) => (
                                 <div
                                     key={index}
                                     className={`thumbnail ${selectedImage === index ? 'active' : ''}`}
                                     onClick={() => setSelectedImage(index)}
                                 >
-                                    <img src={img} alt={`${product.name} ${index + 1}`} />
+                                    <img src={getImageUrl(img)} alt={`${product.name} ${index + 1}`} />
                                 </div>
                             ))}
                         </div>
@@ -181,27 +199,29 @@ const ProductDetail = () => {
                                         </svg>
                                     ))}
                                 </div>
-                                <span className="rating-text">{product.rating} ({product.totalReviews} reviews)</span>
+                                <span className="rating-text">{product.rating || 0} ({(product.reviews || []).length} reviews)</span>
                             </div>
                             <div className="product-stats">
-                                <span className="stat-item">
-                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                                        <path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
-                                        <circle cx="8.5" cy="7" r="4" />
-                                        <line x1="20" y1="8" x2="20" y2="14" />
-                                        <line x1="23" y1="11" x2="17" y2="11" />
-                                    </svg>
-                                    {product.sold} Sold
-                                </span>
                                 <span className="stat-item">
                                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                                         <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z" />
                                         <polyline points="3.27 6.96 12 12.01 20.73 6.96" />
                                         <line x1="12" y1="22.08" x2="12" y2="12" />
                                     </svg>
-                                    {product.stock} In Stock
+                                    {product.stock || 0} In Stock
                                 </span>
-                                <span className="sku">SKU: {product.sku}</span>
+                                {user?.role === 1 && (
+                                    <span className="stat-item">
+                                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                            <path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+                                            <circle cx="8.5" cy="7" r="4" />
+                                            <line x1="20" y1="8" x2="20" y2="14" />
+                                            <line x1="23" y1="11" x2="17" y2="11" />
+                                        </svg>
+                                        {product.sold || 0} Sold
+                                    </span>
+                                )}
+                                <span className="sku">SKU: {product.sku || 'N/A'}</span>
                             </div>
                         </div>
 
@@ -222,16 +242,16 @@ const ProductDetail = () => {
                         <div className="selection-section">
                             <label>Select Color:</label>
                             <div className="color-options">
-                                {product.colors.map((color, index) => (
+                                {(product.colors || []).map((color, index) => (
                                     <div
                                         key={index}
-                                        className={`color-option ${selectedColor === color.hex ? 'active' : ''}`}
-                                        onClick={() => setSelectedColor(color.hex)}
+                                        className={`color-option ${selectedColor === color.hexCode ? 'active' : ''}`}
+                                        onClick={() => setSelectedColor(color.hexCode)}
                                         title={color.name}
                                     >
                                         <span
                                             className="color-circle"
-                                            style={{ backgroundColor: color.hex }}
+                                            style={{ backgroundColor: color.hexCode }}
                                         ></span>
                                         <span className="color-name">{color.name}</span>
                                     </div>
@@ -243,7 +263,7 @@ const ProductDetail = () => {
                         <div className="selection-section">
                             <label>Select Size:</label>
                             <div className="size-options">
-                                {product.sizes.map((size, index) => (
+                                {(product.sizes || []).map((size, index) => (
                                     <button
                                         key={index}
                                         className={`size-option ${selectedSize === size ? 'active' : ''}`}
@@ -306,7 +326,7 @@ const ProductDetail = () => {
                         <div className="product-features">
                             <h3>Key Features</h3>
                             <ul>
-                                {product.features.map((feature, index) => (
+                                {(product.features || []).map((feature, index) => (
                                     <li key={index}>
                                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                                             <polyline points="20 6 9 17 4 12" />
@@ -388,12 +408,12 @@ const ProductDetail = () => {
                     )}
 
                     <div className="reviews-list">
-                        {product.reviews.map((review) => (
-                            <div key={review.id} className="review-item">
+                        {(product.reviews || []).map((review) => (
+                            <div key={review._id || review.id} className="review-item">
                                 <div className="review-header">
                                     <div className="reviewer-info">
                                         <div className="reviewer-avatar">
-                                            {review.user.charAt(0)}
+                                            {(review.user || "A").charAt(0)}
                                         </div>
                                         <div>
                                             <h4>{review.user}</h4>

@@ -18,7 +18,6 @@ const AdminProducts = () => {
         price: '', // This will be the discounted price
         stock: '',
         images: [{ url: '', alt: '', uploadMethod: 'url' }],
-        tryOnImage: { url: '', uploadMethod: 'url' },
         colors: [{ name: '', hexCode: '#000000' }],
         sizes: [],
         tags: [],
@@ -85,16 +84,6 @@ const AdminProducts = () => {
         }
     };
 
-    const handleTryOnImageUpload = (e) => {
-        const file = e.target.files[0];
-        if (file) {
-            const reader = new FileReader();
-            reader.onloadend = () => {
-                setNewProduct({ ...newProduct, tryOnImage: { ...newProduct.tryOnImage, url: reader.result } });
-            };
-            reader.readAsDataURL(file);
-        }
-    };
 
     const handleAddColor = () => {
         setNewProduct({ ...newProduct, colors: [...newProduct.colors, { name: '', hexCode: '#000000' }] });
@@ -158,8 +147,7 @@ const AdminProducts = () => {
         setNewProduct({
             ...product,
             newCategory: '',
-            images: product.images.map(img => ({ ...img, uploadMethod: 'url' })),
-            tryOnImage: product.tryOnImage || { url: '', uploadMethod: 'url' }
+            images: product.images.map(img => ({ ...img, uploadMethod: 'url' }))
         });
         setEditingId(product._id);
         setIsEditing(true);
@@ -193,7 +181,6 @@ const AdminProducts = () => {
             price: '',
             stock: '',
             images: [{ url: '', alt: '', uploadMethod: 'url' }],
-            tryOnImage: { url: '', uploadMethod: 'url' },
             colors: [{ name: '', hexCode: '#000000' }],
             sizes: [],
             tags: [],
@@ -237,7 +224,9 @@ const AdminProducts = () => {
                                         <tr key={p._id || p.id}>
                                             <td className="product-cell">
                                                 <div className="product-thumb">
-                                                    {p.images && p.images[0] ? <img src={p.images[0].url} alt="" /> : 'N/A'}
+                                                    {p.images && p.images[0] ? (
+                                                        <img src={typeof p.images[0] === 'string' ? p.images[0] : p.images[0].url} alt="" />
+                                                    ) : 'N/A'}
                                                 </div>
                                                 <div className="product-meta">
                                                     <strong>{p.name}</strong>
@@ -447,6 +436,7 @@ const AdminProducts = () => {
                                                         onChange={(e) => handleImageChange(idx, 'url', e.target.value)}
                                                         placeholder="https://images.unsplash.com/..."
                                                     />
+                                                    {img.url && <div className="image-preview-mini"><img src={img.url} alt="" /></div>}
                                                 </div>
                                             ) : (
                                                 <div className="form-group">
@@ -471,55 +461,6 @@ const AdminProducts = () => {
                                     <button type="button" className="text-btn" onClick={handleAddImage}>+ Add Another Image</button>
                                 </section>
 
-                                <section className="form-section try-on-section">
-                                    <h3>Virtual Try-On (Beta)</h3>
-                                    <p className="section-hint">Upload a transparent PNG image of the product for virtual try-on features.</p>
-                                    <div className="upload-tabs">
-                                        <button
-                                            type="button"
-                                            className={`tab-btn ${newProduct.tryOnImage.uploadMethod === 'url' ? 'active' : ''}`}
-                                            onClick={() => setNewProduct({ ...newProduct, tryOnImage: { ...newProduct.tryOnImage, uploadMethod: 'url' } })}
-                                        >
-                                            URL
-                                        </button>
-                                        <button
-                                            type="button"
-                                            className={`tab-btn ${newProduct.tryOnImage.uploadMethod === 'upload' ? 'active' : ''}`}
-                                            onClick={() => setNewProduct({ ...newProduct, tryOnImage: { ...newProduct.tryOnImage, uploadMethod: 'upload' } })}
-                                        >
-                                            Upload
-                                        </button>
-                                    </div>
-
-                                    {newProduct.tryOnImage.uploadMethod === 'url' ? (
-                                        <div className="form-group">
-                                            <label>Try-On Image URL</label>
-                                            <input
-                                                type="text"
-                                                value={newProduct.tryOnImage.url}
-                                                onChange={(e) => setNewProduct({ ...newProduct, tryOnImage: { ...newProduct.tryOnImage, url: e.target.value } })}
-                                                placeholder="Link to transparent PNG..."
-                                            />
-                                        </div>
-                                    ) : (
-                                        <div className="form-group">
-                                            <label>Upload Try-On Image</label>
-                                            <div className="file-upload-wrapper">
-                                                <input
-                                                    type="file"
-                                                    accept="image/*"
-                                                    onChange={handleTryOnImageUpload}
-                                                    className="file-input"
-                                                    id="tryon-img-upload"
-                                                />
-                                                <label htmlFor="tryon-img-upload" className="file-label">
-                                                    {newProduct.tryOnImage.url ? "✓ Image Ready" : "📁 Select Try-On Graphic"}
-                                                </label>
-                                                {newProduct.tryOnImage.url && <div className="image-preview-mini"><img src={newProduct.tryOnImage.url} alt="" /></div>}
-                                            </div>
-                                        </div>
-                                    )}
-                                </section>
 
                                 <section className="form-section">
                                     <h3>Variants (Colors & Sizes)</h3>
@@ -855,17 +796,6 @@ const AdminProducts = () => {
                     width: 100%;
                     height: 100%;
                     object-fit: cover;
-                }
-                .try-on-section {
-                    background: #ebf8ff;
-                    border: 1px solid #bee3f8;
-                    padding: 25px;
-                    border-radius: 12px;
-                }
-                .section-hint {
-                    font-size: 0.85rem;
-                    color: #2b6cb0;
-                    margin-bottom: 15px;
                 }
             `}</style>
         </div>

@@ -245,7 +245,7 @@ const Products = () => {
                 {/* Products Grid */}
                 <div className="products-grid">
                     {filteredProducts.map(product => (
-                        <div key={product.id}>
+                        <div key={product._id || product.id}>
                             <ProductCard product={product} />
                         </div>
                     ))}

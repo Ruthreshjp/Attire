@@ -40,7 +40,7 @@ const AdminCarousel = () => {
     const saveToBackend = async (updatedSlides) => {
         try {
             const token = localStorage.getItem('token');
-            await fetch('http://localhost:5000/api/content', {
+            const response = await fetch('http://localhost:5000/api/content', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -49,7 +49,7 @@ const AdminCarousel = () => {
                 body: JSON.stringify({
                     pageName: 'home',
                     carousel: updatedSlides.map(s => ({
-                        image: s.image.url,
+                        image: s.image && s.image.url ? s.image.url : (s.image || s.imageUrl),
                         title: s.title,
                         subtitle: s.subtitle,
                         buttonText: s.buttonText,
@@ -58,8 +58,21 @@ const AdminCarousel = () => {
                     }))
                 })
             });
+
+            const data = await response.json();
+            if (response.ok) {
+                console.log('Successfully saved to backend');
+                // Optional: alert('Changes saved successfully!');
+            } else {
+                console.error('Failed to save to backend:', data.message || data.msg);
+                alert('Err: ' + (data.message || data.msg || 'Failed to save changes'));
+                // If it failed, we should ideally fetch the slides again to revert local state
+                fetchSlides();
+            }
         } catch (err) {
             console.error('Error saving slides:', err);
+            alert('Error connecting to server. Please try again.');
+            fetchSlides();
         }
     };
 
@@ -100,9 +113,10 @@ const AdminCarousel = () => {
     };
 
     const handleEdit = (slide) => {
+        const imgUrl = slide.image?.url || slide.image || slide.imageUrl;
         setNewSlide({
             type: slide.type || 'hero',
-            imageUrl: slide.image?.url || slide.image,
+            imageUrl: imgUrl,
             title: slide.title,
             subtitle: slide.subtitle,
             buttonText: slide.buttonText || 'Shop Now',
@@ -251,7 +265,7 @@ const AdminCarousel = () => {
                     {slides.map(slide => (
                         <div key={slide.id} className="carousel-admin-card">
                             <div className="slide-preview">
-                                <img src={slide.image.url} alt={slide.title} />
+                                <img src={slide.image?.url || slide.image || slide.imageUrl} alt={slide.title} />
                                 <div className="slide-overlay">
                                     <h3>{slide.title}</h3>
                                     <p>{slide.subtitle}</p>
@@ -259,7 +273,7 @@ const AdminCarousel = () => {
                             </div>
                             <div className="slide-actions">
                                 <div className="slide-info">
-                                    <strong>{slide.type.toUpperCase()} SLIDE</strong>
+                                    <strong>{(slide.type || 'hero').toUpperCase()} SLIDE</strong>
                                     <span>Status: {slide.isActive ? 'Visible' : 'Hidden'}</span>
                                 </div>
                                 <div className="btn-group">

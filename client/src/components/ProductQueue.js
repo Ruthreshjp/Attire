@@ -48,7 +48,7 @@ const ProductQueue = ({ title, subtitle, products }) => {
             <div className="product-queue-container" ref={scrollContainerRef}>
                 <div className="product-queue">
                     {products.map((product) => (
-                        <div key={product.id} className="product-queue-item">
+                        <div key={product._id || product.id} className="product-queue-item">
                             <ProductCard product={product} />
                         </div>
                     ))}

@@ -1,76 +1,49 @@
-import React, { useState } from 'react';
+import React from 'react';
 import Navbar from '../components/Navbar';
 import { useNavigate } from 'react-router-dom';
+import { useCart } from '../context/CartContext';
 
 const Cart = () => {
     const navigate = useNavigate();
-    const [cartItems, setCartItems] = useState([
-        {
-            id: 1,
-            name: 'Classic White Shirt',
-            price: 3999,
-            size: 'L',
-            color: 'White',
-            image: 'https://images.unsplash.com/photo-1602810318383-e386cc2a3ccf?w=600&q=80',
-            quantity: 1
-        },
-        {
-            id: 2,
-            name: 'Slim Fit Denim Jeans',
-            price: 5599,
-            size: '32',
-            color: 'Blue',
-            image: 'https://images.unsplash.com/photo-1542272604-787c3835535d?w=600&q=80',
-            quantity: 2
-        }
-    ]);
+    const { cartItems, removeFromCart, updateQuantity, cartTotal } = useCart();
 
-    const handleQuantityChange = (id, change) => {
-        setCartItems(cartItems.map(item => {
-            if (item.id === id) {
-                const newQuantity = Math.max(1, item.quantity + change);
-                return { ...item, quantity: newQuantity };
-            }
-            return item;
-        }));
-    };
-
-    const handleRemoveItem = (id) => {
-        setCartItems(cartItems.filter(item => item.id !== id));
-    };
-
-    const subtotal = cartItems.reduce((acc, item) => acc + (item.price * item.quantity), 0);
-    const shipping = subtotal > 2000 ? 0 : 150;
-    const total = subtotal + shipping;
+    const shipping = cartTotal > 2000 ? 0 : 150;
+    const total = cartTotal + shipping;
 
     return (
         <div className="cart-page">
             <Navbar />
             <div className="cart-container">
-                <h1 className="cart-title">Your Cart ({cartItems.length} items)</h1>
+                <h1 className="cart-title">Your Cart ({cartItems.length} item{cartItems.length !== 1 ? 's' : ''})</h1>
 
                 {cartItems.length > 0 ? (
                     <div className="cart-content">
                         <div className="cart-items">
                             {cartItems.map(item => (
-                                <div key={item.id} className="cart-item">
+                                <div key={item.cartKey} className="cart-item">
                                     <div className="cart-item-image">
                                         <img src={item.image} alt={item.name} />
                                     </div>
                                     <div className="cart-item-details">
                                         <h3>{item.name}</h3>
-                                        <p className="cart-item-meta">Size: {item.size} | Color: {item.color}</p>
-                                        <div className="cart-item-price">₹{item.price.toLocaleString('en-IN')}</div>
+                                        {(item.size || item.color) && (
+                                            <p className="cart-item-meta">
+                                                {item.size && `Size: ${item.size}`}
+                                                {item.size && item.color && ' | '}
+                                                {item.color && `Color: ${item.color}`}
+                                            </p>
+                                        )}
+                                        <div className="cart-item-price">₹{(item.price || 0).toLocaleString('en-IN')}</div>
                                     </div>
                                     <div className="cart-item-actions">
                                         <div className="quantity-control">
-                                            <button onClick={() => handleQuantityChange(item.id, -1)}>-</button>
+                                            <button onClick={() => updateQuantity(item.cartKey, -1)}>-</button>
                                             <span>{item.quantity}</span>
-                                            <button onClick={() => handleQuantityChange(item.id, 1)}>+</button>
+                                            <button onClick={() => updateQuantity(item.cartKey, 1)}>+</button>
                                         </div>
                                         <button
                                             className="remove-item-btn"
-                                            onClick={() => handleRemoveItem(item.id)}
+                                            onClick={() => removeFromCart(item.cartKey)}
                                         >
                                             Remove
                                         </button>
@@ -83,7 +56,7 @@ const Cart = () => {
                             <h2>Order Summary</h2>
                             <div className="summary-row">
                                 <span>Subtotal</span>
-                                <span>₹{subtotal.toLocaleString('en-IN')}</span>
+                                <span>₹{cartTotal.toLocaleString('en-IN')}</span>
                             </div>
                             <div className="summary-row">
                                 <span>Shipping</span>

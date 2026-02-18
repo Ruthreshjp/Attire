@@ -94,10 +94,7 @@ const Home = () => {
                     <div className="footer-section">
                         <h4>Follow Us</h4>
                         <div className="social-links">
-                            <a href="#" aria-label="Instagram">Instagram</a>
-                            <a href="#" aria-label="Facebook">Facebook</a>
-                            <a href="#" aria-label="Twitter">Twitter</a>
-                            <a href="#" aria-label="Pinterest">Pinterest</a>
+                            <a href="https://www.instagram.com/attire_tiruchengode?igsh=ODNkZTB2bmh3dTQz" target="_blank" rel="noopener noreferrer" aria-label="Instagram">Instagram</a>
                         </div>
                     </div>
                 </div>

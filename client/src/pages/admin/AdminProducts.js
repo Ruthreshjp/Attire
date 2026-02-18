@@ -212,7 +212,9 @@ const AdminProducts = () => {
                                     <th>Product</th>
                                     <th>Category</th>
                                     <th>Pricing</th>
-                                    <th>Stock</th>
+                                    <th>Available Stock</th>
+                                    <th>Total Stock</th>
+                                    <th>Sold</th>
                                     <th>Actions</th>
                                 </tr>
                             </thead>
@@ -248,8 +250,14 @@ const AdminProducts = () => {
                                             </td>
                                             <td>
                                                 <span className={`stock-status ${p.stock < 10 ? 'low' : ''}`}>
-                                                    {p.stock} in stock
+                                                    {p.stock} units
                                                 </span>
+                                            </td>
+                                            <td>
+                                                <span>{(p.stock || 0) + (p.sold || 0)} units</span>
+                                            </td>
+                                            <td>
+                                                <span className="sold-count">{p.sold || 0} sold</span>
                                             </td>
                                             <td>
                                                 <div className="action-btns">
@@ -547,6 +555,23 @@ const AdminProducts = () => {
                 .admin-table td {
                     text-align: center !important;
                     vertical-align: middle;
+                    padding: 15px 10px;
+                }
+
+                .stock-status {
+                    display: inline-block;
+                    padding: 4px 10px;
+                    border-radius: 4px;
+                    font-weight: 600;
+                    font-size: 0.85rem;
+                }
+                .stock-status.low {
+                    background: #fff5f5;
+                    color: #e53e3e;
+                }
+                .sold-count {
+                    font-weight: 600;
+                    color: #2b6cb0;
                 }
 
                 .product-cell {

@@ -1,18 +1,20 @@
 import React, { useState, useContext } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { AuthContext } from '../context/AuthContext';
+import { useCart } from '../context/CartContext';
+import { useWishlist } from '../context/WishlistContext';
 
 
 const Navbar = ({ onSearch, onFilter }) => {
   const navigate = useNavigate();
   const { user, logout } = useContext(AuthContext);
+  const { cartCount } = useCart();
+  const { hasNewItems } = useWishlist();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [isFilterOpen, setIsFilterOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
-  const [cartCount] = useState(0);
-  const [wishlistCount] = useState(0);
-  const [categories, setCategories] = useState(['Watches', 'Eyewear', 'Bags', 'Wallets', 'Ties', 'Cufflinks', 'Belts', 'Accessories']);
+  const [categories, setCategories] = useState(['Shirts']);
 
   React.useEffect(() => {
     const fetchCategories = async () => {
@@ -20,10 +22,14 @@ const Navbar = ({ onSearch, onFilter }) => {
         const response = await fetch('http://localhost:5000/api/products');
         const data = await response.json();
         if (data.success) {
-          const uniqueCategories = [...new Set(data.products.map(p => p.category))];
-          if (uniqueCategories.length > 0) {
-            setCategories([...new Set([...categories, ...uniqueCategories])]);
-          }
+          // Get unique categories from actual products
+          const productCategories = data.products
+            .map(p => p.category)
+            .filter(cat => cat && cat.trim() !== '');
+
+          // Combine with initial 'Shirts' and remove duplicates
+          const uniqueCategories = [...new Set(['Shirts', ...productCategories])];
+          setCategories(uniqueCategories);
         }
       } catch (err) {
         console.error('Error fetching categories:', err);
@@ -162,7 +168,7 @@ const Navbar = ({ onSearch, onFilter }) => {
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
               <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
             </svg>
-            {wishlistCount > 0 && <span className="wishlist-badge">{wishlistCount}</span>}
+            {hasNewItems && <span className="wishlist-dot"></span>}
           </div>
 
           <div

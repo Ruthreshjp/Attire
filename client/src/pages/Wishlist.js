@@ -1,34 +1,21 @@
-import React, { useState } from 'react';
+import React, { useEffect } from 'react';
 import Navbar from '../components/Navbar';
-import ProductCard from '../components/ProductCard';
 import { useNavigate } from 'react-router-dom';
+import { useWishlist } from '../context/WishlistContext';
+import { useCart } from '../context/CartContext';
 
 const Wishlist = () => {
     const navigate = useNavigate();
-    const [wishlistItems, setWishlistItems] = useState([
-        {
-            id: 1,
-            name: 'Classic White Shirt',
-            price: 6399,
-            image: 'https://images.unsplash.com/photo-1602810318383-e386cc2a3ccf?w=600&q=80',
-            inStock: true
-        },
-        {
-            id: 2,
-            name: 'Leather Belt',
-            price: 3999,
-            image: 'https://images.unsplash.com/photo-1624222247344-550fb60583bb?w=600&q=80',
-            inStock: false
-        }
-    ]);
+    const { wishlistItems, removeFromWishlist, markSeen } = useWishlist();
+    const { addToCart } = useCart();
 
-    const handleRemove = (id) => {
-        setWishlistItems(wishlistItems.filter(item => item.id !== id));
-    };
+    useEffect(() => {
+        markSeen();
+    }, [markSeen]);
 
-    const handleAddToCart = (id) => {
-        // Assume adding to cart logic here
-        console.log(`Add item ${id} to cart`);
+    const handleMoveToCart = (item) => {
+        addToCart(item);
+        removeFromWishlist(item.id);
     };
 
     return (
@@ -45,7 +32,7 @@ const Wishlist = () => {
                                     <img src={item.image} alt={item.name} />
                                     <button
                                         className="remove-wishlist-btn"
-                                        onClick={() => handleRemove(item.id)}
+                                        onClick={() => removeFromWishlist(item.id)}
                                     >
                                         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                                             <line x1="18" y1="6" x2="6" y2="18"></line>
@@ -55,14 +42,16 @@ const Wishlist = () => {
                                 </div>
                                 <div className="wishlist-details">
                                     <h3>{item.name}</h3>
-                                    <div className="price">₹{item.price.toLocaleString('en-IN')}</div>
+                                    {item.category && (
+                                        <p className="wishlist-category">{item.category}</p>
+                                    )}
+                                    <div className="price">₹{(item.price || 0).toLocaleString('en-IN')}</div>
                                     <div className={`stock-status ${item.inStock ? 'in-stock' : 'out-of-stock'}`}>
-                                        {item.inStock ? 'In Stock' : 'Out of Stock'}
+                                        {item.inStock !== false ? 'In Stock' : 'Out of Stock'}
                                     </div>
                                     <button
                                         className="move-to-cart-btn"
-                                        disabled={!item.inStock}
-                                        onClick={() => handleAddToCart(item.id)}
+                                        onClick={() => handleMoveToCart(item)}
                                     >
                                         Move to Cart
                                     </button>

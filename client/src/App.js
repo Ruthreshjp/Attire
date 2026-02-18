@@ -16,32 +16,38 @@ import AdminOrders from './pages/admin/AdminOrders';
 import AdminCarousel from './pages/admin/AdminCarousel';
 import AdminAbout from './pages/admin/AdminAbout';
 import { AuthProvider } from './context/AuthContext';
+import { CartProvider } from './context/CartContext';
+import { WishlistProvider } from './context/WishlistContext';
 import './App.css';
 
 function App() {
     return (
         <AuthProvider>
-            <div className="App">
-                <Routes>
-                    <Route path="/" element={<Home />} />
-                    <Route path="/products" element={<Products />} />
-                    <Route path="/product/:id" element={<ProductDetail />} />
-                    <Route path="/cart" element={<Cart />} />
-                    <Route path="/wishlist" element={<Wishlist />} />
-                    <Route path="/login" element={<Login />} />
-                    <Route path="/signup" element={<Signup />} />
-                    <Route path="/about" element={<About />} />
-                    <Route path="/profile" element={<Profile />} />
-                    <Route path="/my-orders" element={<MyOrders />} />
+            <CartProvider>
+                <WishlistProvider>
+                    <div className="App">
+                        <Routes>
+                            <Route path="/" element={<Home />} />
+                            <Route path="/products" element={<Products />} />
+                            <Route path="/product/:id" element={<ProductDetail />} />
+                            <Route path="/cart" element={<Cart />} />
+                            <Route path="/wishlist" element={<Wishlist />} />
+                            <Route path="/login" element={<Login />} />
+                            <Route path="/signup" element={<Signup />} />
+                            <Route path="/about" element={<About />} />
+                            <Route path="/profile" element={<Profile />} />
+                            <Route path="/my-orders" element={<MyOrders />} />
 
-                    {/* Admin Routes */}
-                    <Route path="/admin" element={<AdminDashboard />} />
-                    <Route path="/admin/products" element={<AdminProducts />} />
-                    <Route path="/admin/orders" element={<AdminOrders />} />
-                    <Route path="/admin/carousel" element={<AdminCarousel />} />
-                    <Route path="/admin/about" element={<AdminAbout />} />
-                </Routes>
-            </div>
+                            {/* Admin Routes */}
+                            <Route path="/admin" element={<AdminDashboard />} />
+                            <Route path="/admin/products" element={<AdminProducts />} />
+                            <Route path="/admin/orders" element={<AdminOrders />} />
+                            <Route path="/admin/carousel" element={<AdminCarousel />} />
+                            <Route path="/admin/about" element={<AdminAbout />} />
+                        </Routes>
+                    </div>
+                </WishlistProvider>
+            </CartProvider>
         </AuthProvider>
     );
 }

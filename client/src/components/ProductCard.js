@@ -1,12 +1,19 @@
 import React, { useState, useContext } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { AuthContext } from '../context/AuthContext';
+import { useCart } from '../context/CartContext';
+import { useWishlist } from '../context/WishlistContext';
 
 const ProductCard = ({ product }) => {
-    const [isWishlisted, setIsWishlisted] = useState(false);
+    const [addedToCart, setAddedToCart] = useState(false);
     const { user } = useContext(AuthContext);
+    const { addToCart } = useCart();
+    const { toggleWishlist, isWishlisted } = useWishlist();
     const navigate = useNavigate();
     const location = useLocation();
+
+    const productId = product._id || product.id;
+    const wishlisted = isWishlisted(productId);
 
     const handleProtectedAction = (e, actionType) => {
         e.preventDefault();
@@ -18,10 +25,13 @@ const ProductCard = ({ product }) => {
         }
 
         if (actionType === 'wishlist') {
-            setIsWishlisted(!isWishlisted);
+            toggleWishlist(product);
         } else if (actionType === 'cart') {
-            alert('Added to cart!');
+            addToCart(product);
+            setAddedToCart(true);
+            setTimeout(() => setAddedToCart(false), 2000);
         } else if (actionType === 'buy') {
+            addToCart(product);
             navigate('/cart');
         }
     };
@@ -52,10 +62,10 @@ const ProductCard = ({ product }) => {
                     <span className="product-badge discount">-{discountPercent}%</span>
                 )}
                 <button
-                    className={`wishlist-btn ${isWishlisted ? 'active' : ''}`}
+                    className={`wishlist-btn ${wishlisted ? 'active' : ''}`}
                     onClick={(e) => handleProtectedAction(e, 'wishlist')}
                 >
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill={isWishlisted ? "currentColor" : "none"} stroke="currentColor" strokeWidth="2">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill={wishlisted ? "currentColor" : "none"} stroke="currentColor" strokeWidth="2">
                         <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
                     </svg>
                 </button>
@@ -109,6 +119,21 @@ const ProductCard = ({ product }) => {
                     </div>
                 )}
 
+                <div className="product-stock-metrics">
+                    <div className="metric-item">
+                        <span className="metric-label">Available Stock:</span>
+                        <span className="metric-value">{product.stock || 0}</span>
+                    </div>
+                    <div className="metric-item">
+                        <span className="metric-label">Total Stock:</span>
+                        <span className="metric-value">{(product.stock || 0) + (product.sold || 0)}</span>
+                    </div>
+                    <div className="metric-item">
+                        <span className="metric-label">Sold:</span>
+                        <span className="metric-value">{product.sold || 0}</span>
+                    </div>
+                </div>
+
                 <div className="product-action-buttons">
                     <button
                         className="buy-now-btn-card"
@@ -117,10 +142,10 @@ const ProductCard = ({ product }) => {
                         Buy Now
                     </button>
                     <button
-                        className="add-to-cart-btn-card"
+                        className={`add-to-cart-btn-card ${addedToCart ? 'added' : ''}`}
                         onClick={(e) => handleProtectedAction(e, 'cart')}
                     >
-                        Add to Cart
+                        {addedToCart ? '✓ Added' : 'Add to Cart'}
                     </button>
                 </div>
             </div>
@@ -131,6 +156,28 @@ const ProductCard = ({ product }) => {
                     flex-direction: column;
                     gap: 8px;
                     margin-top: 15px;
+                }
+                .product-stock-metrics {
+                    display: flex;
+                    flex-direction: column;
+                    gap: 4px;
+                    margin-top: 12px;
+                    padding: 10px;
+                    background: #f9f9f9;
+                    border-radius: 8px;
+                    border: 1px solid #eee;
+                }
+                .metric-item {
+                    display: flex;
+                    justify-content: space-between;
+                    font-size: 0.85rem;
+                }
+                .metric-label {
+                    color: #666;
+                }
+                .metric-value {
+                    font-weight: 600;
+                    color: #1a1a1a;
                 }
                 .buy-now-btn-card, .add-to-cart-btn-card {
                     width: 100%;
@@ -155,6 +202,11 @@ const ProductCard = ({ product }) => {
                 }
                 .add-to-cart-btn-card:hover {
                     background: #f5f5f5;
+                }
+                .add-to-cart-btn-card.added {
+                    background: #2e7d32;
+                    color: white;
+                    border-color: #2e7d32;
                 }
             `}</style>
         </div>

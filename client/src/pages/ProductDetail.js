@@ -2,6 +2,8 @@ import React, { useState, useEffect, useContext } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import Navbar from '../components/Navbar';
 import { AuthContext } from '../context/AuthContext';
+import { useCart } from '../context/CartContext';
+import { useWishlist } from '../context/WishlistContext';
 
 
 const ProductDetail = () => {
@@ -13,9 +15,15 @@ const ProductDetail = () => {
     const [selectedSize, setSelectedSize] = useState('');
     const [selectedColor, setSelectedColor] = useState('');
     const [quantity, setQuantity] = useState(1);
-    const [isWishlisted, setIsWishlisted] = useState(false);
     const [showReviewForm, setShowReviewForm] = useState(false);
+    const [addedToCart, setAddedToCart] = useState(false);
+
     const { user } = useContext(AuthContext);
+    const { addToCart } = useCart();
+    const { toggleWishlist, isWishlisted } = useWishlist();
+
+    const productId = product?._id || product?.id;
+    const wishlisted = isWishlisted(productId);
 
     // Sample product data - will be fetched from API
     const productData = {
@@ -110,8 +118,9 @@ const ProductDetail = () => {
             alert('Please select a size');
             return;
         }
-        // Add to cart logic
-        alert('Added to cart!');
+        addToCart(product, selectedSize, selectedColor);
+        setAddedToCart(true);
+        setTimeout(() => setAddedToCart(false), 2000);
     };
 
     const handleBuyNow = () => {
@@ -119,12 +128,12 @@ const ProductDetail = () => {
             alert('Please select a size');
             return;
         }
-        // Buy now logic - redirect to checkout
-        navigate('/checkout');
+        addToCart(product, selectedSize, selectedColor);
+        navigate('/cart');
     };
 
     const handleWishlist = () => {
-        setIsWishlisted(!isWishlisted);
+        toggleWishlist(product);
     };
 
     if (loading) {
@@ -157,10 +166,10 @@ const ProductDetail = () => {
                         <div className="main-image">
                             <img src={getImageUrl(product.images[selectedImage])} alt={product.name} />
                             <button
-                                className={`wishlist-btn-large ${isWishlisted ? 'active' : ''}`}
+                                className={`wishlist-btn-large ${wishlisted ? 'active' : ''}`}
                                 onClick={handleWishlist}
                             >
-                                <svg width="24" height="24" viewBox="0 0 24 24" fill={isWishlisted ? "currentColor" : "none"} stroke="currentColor" strokeWidth="2">
+                                <svg width="24" height="24" viewBox="0 0 24 24" fill={wishlisted ? "currentColor" : "none"} stroke="currentColor" strokeWidth="2">
                                     <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
                                 </svg>
                             </button>
@@ -200,28 +209,6 @@ const ProductDetail = () => {
                                     ))}
                                 </div>
                                 <span className="rating-text">{product.rating || 0} ({(product.reviews || []).length} reviews)</span>
-                            </div>
-                            <div className="product-stats">
-                                <span className="stat-item">
-                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                                        <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z" />
-                                        <polyline points="3.27 6.96 12 12.01 20.73 6.96" />
-                                        <line x1="12" y1="22.08" x2="12" y2="12" />
-                                    </svg>
-                                    {product.stock || 0} In Stock
-                                </span>
-                                {user?.role === 1 && (
-                                    <span className="stat-item">
-                                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                                            <path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
-                                            <circle cx="8.5" cy="7" r="4" />
-                                            <line x1="20" y1="8" x2="20" y2="14" />
-                                            <line x1="23" y1="11" x2="17" y2="11" />
-                                        </svg>
-                                        {product.sold || 0} Sold
-                                    </span>
-                                )}
-                                <span className="sku">SKU: {product.sku || 'N/A'}</span>
                             </div>
                         </div>
 
@@ -298,13 +285,13 @@ const ProductDetail = () => {
 
                         {/* Action Buttons */}
                         <div className="action-buttons">
-                            <button className="add-to-cart-btn" onClick={handleAddToCart}>
+                            <button className={`add-to-cart-btn ${addedToCart ? 'added' : ''}`} onClick={handleAddToCart}>
                                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                                     <circle cx="9" cy="21" r="1" />
                                     <circle cx="20" cy="21" r="1" />
                                     <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6" />
                                 </svg>
-                                Add to Cart
+                                {addedToCart ? 'Added ✓' : 'Add to Cart'}
                             </button>
                             <button className="buy-now-btn" onClick={handleBuyNow}>
                                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -322,20 +309,7 @@ const ProductDetail = () => {
                             <p>{product.description}</p>
                         </div>
 
-                        {/* Features */}
-                        <div className="product-features">
-                            <h3>Key Features</h3>
-                            <ul>
-                                {(product.features || []).map((feature, index) => (
-                                    <li key={index}>
-                                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                                            <polyline points="20 6 9 17 4 12" />
-                                        </svg>
-                                        {feature}
-                                    </li>
-                                ))}
-                            </ul>
-                        </div>
+
                     </div>
                 </div>
 
@@ -450,7 +424,7 @@ const ProductDetail = () => {
                     </div>
                 </div>
             </div>
-        </div>
+        </div >
     );
 };
 

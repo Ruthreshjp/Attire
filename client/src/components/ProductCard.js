@@ -47,6 +47,13 @@ const ProductCard = ({ product }) => {
         ? Math.round(((product.originalPrice - product.price) / product.originalPrice) * 100)
         : product.discount;
 
+    const isHomePage = location.pathname === '/';
+    const showAdvancedInfo = !isHomePage || product.isSpecialOffer;
+
+    // Check if product is "New" (listed in the last 7 days)
+    const isActuallyNew = product.isNewArrival || (product.createdAt && (new Date() - new Date(product.createdAt)) < 7 * 24 * 60 * 60 * 1000);
+
+
     return (
         <div className="product-card">
             <div className="product-image-container">
@@ -57,42 +64,44 @@ const ProductCard = ({ product }) => {
                         className="product-image"
                     />
                 </Link>
-                {product.isNewArrival && <span className="product-badge new">New Arrival</span>}
-                {hasDiscount && (
-                    <span className="product-badge discount">-{discountPercent}%</span>
+                {isActuallyNew && <span className="product-badge new">New Arrival</span>}
+
+                {showAdvancedInfo && (
+                    <button
+                        className={`wishlist-btn ${wishlisted ? 'active' : ''}`}
+                        onClick={(e) => handleProtectedAction(e, 'wishlist')}
+                    >
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill={wishlisted ? "currentColor" : "none"} stroke="currentColor" strokeWidth="2">
+                            <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
+                        </svg>
+                    </button>
                 )}
-                <button
-                    className={`wishlist-btn ${wishlisted ? 'active' : ''}`}
-                    onClick={(e) => handleProtectedAction(e, 'wishlist')}
-                >
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill={wishlisted ? "currentColor" : "none"} stroke="currentColor" strokeWidth="2">
-                        <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
-                    </svg>
-                </button>
             </div>
 
             <div className="product-info">
-                <p className="product-category">{product.category}</p>
+                {!isHomePage && <p className="product-category">{product.category}</p>}
                 <Link to={`/product/${product._id || product.id}`} className="product-name-link">
                     <h3 className="product-name">{product.name}</h3>
                 </Link>
 
-                <div className="product-rating">
-                    {[...Array(5)].map((_, index) => (
-                        <svg
-                            key={index}
-                            width="14"
-                            height="14"
-                            viewBox="0 0 24 24"
-                            fill={index < Math.floor(product.rating || 0) ? "currentColor" : "none"}
-                            stroke="currentColor"
-                            strokeWidth="2"
-                        >
-                            <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
-                        </svg>
-                    ))}
-                    <span className="rating-count">({product.reviewsCount || product.reviews || 0})</span>
-                </div>
+                {!isHomePage && (
+                    <div className="product-rating">
+                        {[...Array(5)].map((_, index) => (
+                            <svg
+                                key={index}
+                                width="14"
+                                height="14"
+                                viewBox="0 0 24 24"
+                                fill={index < Math.floor(product.rating || 0) ? "currentColor" : "none"}
+                                stroke="currentColor"
+                                strokeWidth="2"
+                            >
+                                <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
+                            </svg>
+                        ))}
+                        <span className="rating-count">({product.reviewsCount || product.reviews || 0})</span>
+                    </div>
+                )}
 
                 <div className="product-price">
                     {hasDiscount ? (
@@ -119,35 +128,23 @@ const ProductCard = ({ product }) => {
                     </div>
                 )}
 
-                <div className="product-stock-metrics">
-                    <div className="metric-item">
-                        <span className="metric-label">Available Stock:</span>
-                        <span className="metric-value">{product.stock || 0}</span>
-                    </div>
-                    <div className="metric-item">
-                        <span className="metric-label">Total Stock:</span>
-                        <span className="metric-value">{(product.stock || 0) + (product.sold || 0)}</span>
-                    </div>
-                    <div className="metric-item">
-                        <span className="metric-label">Sold:</span>
-                        <span className="metric-value">{product.sold || 0}</span>
-                    </div>
-                </div>
 
-                <div className="product-action-buttons">
-                    <button
-                        className="buy-now-btn-card"
-                        onClick={(e) => handleProtectedAction(e, 'buy')}
-                    >
-                        Buy Now
-                    </button>
-                    <button
-                        className={`add-to-cart-btn-card ${addedToCart ? 'added' : ''}`}
-                        onClick={(e) => handleProtectedAction(e, 'cart')}
-                    >
-                        {addedToCart ? '✓ Added' : 'Add to Cart'}
-                    </button>
-                </div>
+                {!isHomePage && showAdvancedInfo && (
+                    <div className="product-action-buttons">
+                        <button
+                            className="buy-now-btn-card"
+                            onClick={(e) => handleProtectedAction(e, 'buy')}
+                        >
+                            Buy Now
+                        </button>
+                        <button
+                            className={`add-to-cart-btn-card ${addedToCart ? 'added' : ''}`}
+                            onClick={(e) => handleProtectedAction(e, 'cart')}
+                        >
+                            {addedToCart ? '✓ Added' : 'Add to Cart'}
+                        </button>
+                    </div>
+                )}
             </div>
 
             <style>{`
@@ -204,10 +201,32 @@ const ProductCard = ({ product }) => {
                     background: #f5f5f5;
                 }
                 .add-to-cart-btn-card.added {
-                    background: #2e7d32;
-                    color: white;
-                    border-color: #2e7d32;
+                    background: #1a1a1a !important;
+                    color: white !important;
+                    border-color: #1a1a1a !important;
+                    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
                 }
+
+                .product-badge.new {
+                    top: 10px;
+                    left: 10px;
+                    padding: 4px 8px;
+                    font-size: 0.65rem;
+                    background: #1a1a1a;
+                }
+                /* Offset wishlist if new arrival badge exists */
+                .wishlist-btn {
+                    top: 15px;
+                    right: 15px;
+                    background: white;
+                    border: 1px solid #eee;
+                    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+                }
+                .wishlist-btn.active {
+                    color: #d32f2f;
+                    border-color: #d32f2f;
+                }
+
             `}</style>
         </div>
     );

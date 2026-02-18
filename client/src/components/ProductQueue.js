@@ -23,26 +23,6 @@ const ProductQueue = ({ title, subtitle, products }) => {
                     <h2 className="queue-title">{title}</h2>
                     {subtitle && <p className="queue-subtitle">{subtitle}</p>}
                 </div>
-                <div className="queue-controls">
-                    <button
-                        className="queue-arrow queue-arrow-left"
-                        onClick={() => scroll('left')}
-                        aria-label="Scroll left"
-                    >
-                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                            <path d="M15 18l-6-6 6-6" />
-                        </svg>
-                    </button>
-                    <button
-                        className="queue-arrow queue-arrow-right"
-                        onClick={() => scroll('right')}
-                        aria-label="Scroll right"
-                    >
-                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                            <path d="M9 18l6-6-6-6" />
-                        </svg>
-                    </button>
-                </div>
             </div>
 
             <div className="product-queue-container" ref={scrollContainerRef}>

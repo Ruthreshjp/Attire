@@ -3,10 +3,19 @@ import Slider from 'react-slick';
 import { Link } from 'react-router-dom';
 
 
-const HeroCarousel = () => {
+const HeroCarousel = ({ slides: initialSlides }) => {
     const [slides, setSlides] = useState([]);
 
     useEffect(() => {
+        if (initialSlides && initialSlides.length > 0) {
+            setSlides(initialSlides.filter(s => s.isActive !== false).map((s, idx) => ({
+                ...s,
+                id: s.id || idx,
+                image: s.image?.url || s.image || s.imageUrl
+            })));
+            return;
+        }
+
         const fetchSlides = async () => {
             try {
                 const response = await fetch('http://localhost:5000/api/content/home');
@@ -24,7 +33,7 @@ const HeroCarousel = () => {
             }
         };
         fetchSlides();
-    }, []);
+    }, [initialSlides]);
 
     const settings = {
         dots: true,

@@ -43,11 +43,15 @@ const productSchema = new mongoose.Schema({
     }],
     colors: [{
         name: String,
-        hexCode: String
+        hexCode: String,
+        images: [{
+            url: String,
+            alt: String
+        }]
     }],
     sizes: [{
         type: String,
-        enum: ['XS', 'S', 'M', 'L', 'XL', 'XXL', '28', '30', '32', '34', '36', '38', '40', '42']
+        enum: ['XS', 'S', 'M', 'L', 'XL', 'XXL', '28', '30', '32', '34', '36', '38', '40', '42', '8', '9', '10', '11', '12', 'One Size', 'Adjustable']
     }],
     stock: {
         type: Number,

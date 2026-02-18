@@ -7,8 +7,29 @@ const Cart = () => {
     const navigate = useNavigate();
     const { cartItems, removeFromCart, updateQuantity, cartTotal } = useCart();
 
+    const [couponCode, setCouponCode] = React.useState('');
+    const [appliedCoupon, setAppliedCoupon] = React.useState(null);
+    const [couponError, setCouponError] = React.useState('');
+
     const shipping = cartTotal > 2000 ? 0 : 150;
-    const total = cartTotal + shipping;
+    const discountAmount = appliedCoupon ? (cartTotal * (appliedCoupon.percent / 100)) : 0;
+    const total = cartTotal + shipping - discountAmount;
+
+    const handleApplyCoupon = () => {
+        setCouponError('');
+        // Check if any product in cart has this couponCode
+        const match = cartItems.find(item => item.couponCode && item.couponCode.toLowerCase() === couponCode.toLowerCase());
+
+        if (match) {
+            setAppliedCoupon({
+                code: couponCode,
+                percent: match.discount || 0
+            });
+            setCouponCode('');
+        } else {
+            setCouponError('Invalid promo code for items in cart');
+        }
+    };
 
     return (
         <div className="cart-page">
@@ -62,6 +83,28 @@ const Cart = () => {
                                 <span>Shipping</span>
                                 <span>{shipping === 0 ? 'Free' : `₹${shipping.toLocaleString('en-IN')}`}</span>
                             </div>
+
+                            {appliedCoupon && (
+                                <div className="summary-row discount">
+                                    <span>Discount ({appliedCoupon.code})</span>
+                                    <span>-₹{discountAmount.toLocaleString('en-IN')}</span>
+                                </div>
+                            )}
+
+                            <div className="promo-code-section">
+                                <div className="promo-input-group">
+                                    <input
+                                        type="text"
+                                        placeholder="Enter promo code"
+                                        value={couponCode}
+                                        onChange={(e) => setCouponCode(e.target.value)}
+                                    />
+                                    <button onClick={handleApplyCoupon}>Apply</button>
+                                </div>
+                                {couponError && <p className="promo-error">{couponError}</p>}
+                                {appliedCoupon && <p className="promo-success">Coupon "{appliedCoupon.code}" applied!</p>}
+                            </div>
+
                             <div className="summary-divider"></div>
                             <div className="summary-row total">
                                 <span>Total</span>

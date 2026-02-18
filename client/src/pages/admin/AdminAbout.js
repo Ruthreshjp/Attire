@@ -22,6 +22,9 @@ const AdminAbout = () => {
         ],
         cta: { title: '', description: '' }
     });
+    const [isDirty, setIsDirty] = useState(false);
+
+    const markDirty = () => setIsDirty(true);
 
     useEffect(() => {
         fetchContent();
@@ -54,10 +57,12 @@ const AdminAbout = () => {
                 const base64 = reader.result;
                 if (section === 'hero') {
                     setContent({ ...content, hero: { ...content.hero, image: base64 } });
+                    markDirty();
                 } else if (section === 'sections') {
                     const newSections = [...content.sections];
                     newSections[index].image = base64;
                     setContent({ ...content, sections: newSections });
+                    markDirty();
                 }
             };
             reader.readAsDataURL(file);
@@ -80,6 +85,7 @@ const AdminAbout = () => {
             ...content,
             hero: { ...content.hero, [name]: value }
         });
+        markDirty();
     };
 
     const handleSectionChange = (index, e) => {
@@ -87,6 +93,7 @@ const AdminAbout = () => {
         const newSections = [...content.sections];
         newSections[index][name] = value;
         setContent({ ...content, sections: newSections });
+        markDirty();
     };
 
     const handleValueChange = (index, e) => {
@@ -94,6 +101,7 @@ const AdminAbout = () => {
         const newValues = [...content.values];
         newValues[index][name] = value;
         setContent({ ...content, values: newValues });
+        markDirty();
     };
 
     const handleCtaChange = (e) => {
@@ -102,6 +110,7 @@ const AdminAbout = () => {
             ...content,
             cta: { ...content.cta, [name]: value }
         });
+        markDirty();
     };
 
     const handleSubmit = async (e) => {
@@ -122,6 +131,7 @@ const AdminAbout = () => {
 
             if (response.ok) {
                 setMessage({ type: 'success', text: 'Content updated successfully!' });
+                setIsDirty(false);
             } else {
                 setMessage({ type: 'error', text: 'Failed to update content.' });
             }
@@ -318,6 +328,7 @@ const AdminAbout = () => {
                             <button type="submit" className="save-btn" disabled={saving}>
                                 {saving ? 'Saving...' : 'Update About Page'}
                             </button>
+                            {isDirty && <span className="dirty-warning" style={{ color: '#c5a059', marginLeft: '15px', fontWeight: '600' }}>⚠️ You have unsaved changes</span>}
                         </div>
                     </form>
                 </div>
@@ -429,7 +440,7 @@ const AdminAbout = () => {
                     object-fit: cover;
                 }
             `}</style>
-        </div>
+        </div >
     );
 };
 

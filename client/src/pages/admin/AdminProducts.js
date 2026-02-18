@@ -18,14 +18,16 @@ const AdminProducts = () => {
         price: '', // This will be the discounted price
         stock: '',
         images: [{ url: '', alt: '', uploadMethod: 'url' }],
-        colors: [{ name: '', hexCode: '#000000' }],
+        colors: [{ name: '', hexCode: '#000000', images: [{ url: '', alt: '', uploadMethod: 'url' }] }],
         sizes: [],
         tags: [],
         isSpecialOffer: false,
         couponCode: ''
     });
 
-    const [categories, setCategories] = useState(['Watches', 'Eyewear', 'Bags', 'Wallets', 'Ties', 'Cufflinks', 'Belts', 'Accessories']);
+    const [categories, setCategories] = useState(['shirts', 'pants', 't-shirts', 'joggers', 'jackets', 'suits', 'accessories']);
+    const [isDirty, setIsDirty] = useState(false);
+    const markDirty = () => setIsDirty(true);
 
     useEffect(() => {
         fetchProducts();
@@ -51,6 +53,7 @@ const AdminProducts = () => {
     const handleInputChange = (e) => {
         const { name, value } = e.target;
         setNewProduct({ ...newProduct, [name]: value });
+        markDirty();
     };
 
     const handleSizeToggle = (size) => {
@@ -86,13 +89,40 @@ const AdminProducts = () => {
 
 
     const handleAddColor = () => {
-        setNewProduct({ ...newProduct, colors: [...newProduct.colors, { name: '', hexCode: '#000000' }] });
+        setNewProduct({
+            ...newProduct,
+            colors: [...newProduct.colors, { name: '', hexCode: '#000000', images: [{ url: '', alt: '', uploadMethod: 'url' }] }]
+        });
     };
 
     const handleColorChange = (index, field, value) => {
         const colors = [...newProduct.colors];
         colors[index][field] = value;
         setNewProduct({ ...newProduct, colors });
+    };
+
+    const handleAddColorImage = (colorIdx) => {
+        const colors = [...newProduct.colors];
+        colors[colorIdx].images.push({ url: '', alt: '', uploadMethod: 'url' });
+        setNewProduct({ ...newProduct, colors });
+    };
+
+    const handleColorImageChange = (colorIdx, imgIdx, field, value) => {
+        const colors = [...newProduct.colors];
+        colors[colorIdx].images[imgIdx][field] = value;
+        if (field === 'url') colors[colorIdx].images[imgIdx].alt = `${newProduct.name} - ${colors[colorIdx].name}`;
+        setNewProduct({ ...newProduct, colors });
+    };
+
+    const handleColorImageUpload = (colorIdx, imgIdx, e) => {
+        const file = e.target.files[0];
+        if (file) {
+            const reader = new FileReader();
+            reader.onloadend = () => {
+                handleColorImageChange(colorIdx, imgIdx, 'url', reader.result);
+            };
+            reader.readAsDataURL(file);
+        }
     };
 
     const calculateDiscount = () => {
@@ -106,9 +136,14 @@ const AdminProducts = () => {
 
         const finalCategory = newProduct.category === 'other' ? newProduct.newCategory : newProduct.category;
 
+        // Consolidate images: The first image of the first color will be used as the primary display image
+        // if no global images exist (though we are moving to color-first)
+        const allImages = newProduct.colors.flatMap(c => c.images).filter(img => img.url);
+
         const product = {
             ...newProduct,
             category: finalCategory,
+            images: allImages, // Populate global images from color images for compatibility
             discount: calculateDiscount()
         };
 
@@ -414,106 +449,176 @@ const AdminProducts = () => {
                                     </div>
                                 </section>
 
-                                <section className="form-section">
-                                    <h3>Product Visuals</h3>
-                                    {newProduct.images.map((img, idx) => (
-                                        <div key={idx} className="image-input-container">
-                                            <div className="upload-tabs">
-                                                <button
-                                                    type="button"
-                                                    className={`tab-btn ${img.uploadMethod === 'url' ? 'active' : ''}`}
-                                                    onClick={() => handleImageChange(idx, 'uploadMethod', 'url')}
-                                                >
-                                                    URL
-                                                </button>
-                                                <button
-                                                    type="button"
-                                                    className={`tab-btn ${img.uploadMethod === 'upload' ? 'active' : ''}`}
-                                                    onClick={() => handleImageChange(idx, 'uploadMethod', 'upload')}
-                                                >
-                                                    Upload
-                                                </button>
-                                            </div>
-
-                                            {img.uploadMethod === 'url' ? (
-                                                <div className="form-group">
-                                                    <label>Image URL {idx + 1}</label>
-                                                    <input
-                                                        type="text"
-                                                        value={img.url}
-                                                        onChange={(e) => handleImageChange(idx, 'url', e.target.value)}
-                                                        placeholder="https://images.unsplash.com/..."
-                                                    />
-                                                    {img.url && <div className="image-preview-mini"><img src={img.url} alt="" /></div>}
-                                                </div>
-                                            ) : (
-                                                <div className="form-group">
-                                                    <label>Upload Image {idx + 1}</label>
-                                                    <div className="file-upload-wrapper">
-                                                        <input
-                                                            type="file"
-                                                            accept="image/*"
-                                                            onChange={(e) => handleProductImageUpload(idx, e)}
-                                                            className="file-input"
-                                                            id={`product-img-${idx}`}
-                                                        />
-                                                        <label htmlFor={`product-img-${idx}`} className="file-label">
-                                                            {img.url ? "✓ Image Uploaded" : "📁 Choose Image File"}
-                                                        </label>
-                                                        {img.url && <div className="image-preview-mini"><img src={img.url} alt="" /></div>}
-                                                    </div>
-                                                </div>
-                                            )}
-                                        </div>
-                                    ))}
-                                    <button type="button" className="text-btn" onClick={handleAddImage}>+ Add Another Image</button>
-                                </section>
-
-
-                                <section className="form-section">
-                                    <h3>Variants (Colors & Sizes)</h3>
-                                    <div className="colors-list">
-                                        {newProduct.colors.map((color, idx) => (
-                                            <div key={idx} className="color-input-row">
-                                                <input
-                                                    type="text"
-                                                    placeholder="Color name"
-                                                    value={color.name}
-                                                    onChange={(e) => handleColorChange(idx, 'name', e.target.value)}
-                                                />
-                                                <input
-                                                    type="color"
-                                                    value={color.hexCode}
-                                                    onChange={(e) => handleColorChange(idx, 'hexCode', e.target.value)}
-                                                />
-                                            </div>
-                                        ))}
-                                        <button type="button" className="text-btn" onClick={handleAddColor}>+ Add Color Variant</button>
+                                <section className="form-section color-first-visuals">
+                                    <div className="section-header-admin">
+                                        <h3>Product Visuals & Color Variants</h3>
+                                        <p>First, add a color, then attach images specific to that color.</p>
                                     </div>
 
-                                    <div className="sizes-grid">
-                                        <label className="full-width">Available Sizes</label>
-                                        {availableSizes.map(size => (
-                                            <button
-                                                key={size}
-                                                type="button"
-                                                className={`size-chip ${newProduct.sizes.includes(size) ? 'selected' : ''}`}
-                                                onClick={() => handleSizeToggle(size)}
-                                            >
-                                                {size}
-                                            </button>
+                                    <div className="advanced-colors-list">
+                                        {newProduct.colors.map((color, colorIdx) => (
+                                            <div key={colorIdx} className="color-variant-block premium-card">
+                                                <div className="color-header-row">
+                                                    <div className="color-basic-info">
+                                                        <div className="form-group-compact">
+                                                            <label>Color Name</label>
+                                                            <input
+                                                                type="text"
+                                                                placeholder="e.g., Midnight Blue"
+                                                                value={color.name}
+                                                                onChange={(e) => {
+                                                                    handleColorChange(colorIdx, 'name', e.target.value);
+                                                                    markDirty();
+                                                                }}
+                                                            />
+                                                        </div>
+                                                        <div className="form-group-compact">
+                                                            <label>Preview Swatch</label>
+                                                            <input
+                                                                type="color"
+                                                                value={color.hexCode}
+                                                                onChange={(e) => {
+                                                                    handleColorChange(colorIdx, 'hexCode', e.target.value);
+                                                                    markDirty();
+                                                                }}
+                                                            />
+                                                        </div>
+                                                    </div>
+                                                    {newProduct.colors.length > 1 && (
+                                                        <button
+                                                            type="button"
+                                                            className="remove-color-btn"
+                                                            onClick={() => {
+                                                                const colors = newProduct.colors.filter((_, i) => i !== colorIdx);
+                                                                setNewProduct({ ...newProduct, colors });
+                                                                markDirty();
+                                                            }}
+                                                        >🗑️ Remove Color</button>
+                                                    )}
+                                                </div>
+
+                                                <div className="color-images-section">
+                                                    <label className="sub-label">Images for {color.name || 'this color'}</label>
+                                                    <div className="color-images-grid-enhanced">
+                                                        {color.images.map((img, imgIdx) => (
+                                                            <div key={imgIdx} className="enhanced-image-card">
+                                                                <div className="mini-upload-tabs">
+                                                                    <button
+                                                                        type="button"
+                                                                        className={img.uploadMethod === 'url' ? 'active' : ''}
+                                                                        onClick={() => handleColorImageChange(colorIdx, imgIdx, 'uploadMethod', 'url')}
+                                                                    >URL</button>
+                                                                    <button
+                                                                        type="button"
+                                                                        className={img.uploadMethod === 'upload' ? 'active' : ''}
+                                                                        onClick={() => handleColorImageChange(colorIdx, imgIdx, 'uploadMethod', 'upload')}
+                                                                    >File</button>
+                                                                </div>
+
+                                                                <div className="image-input-area">
+                                                                    {img.uploadMethod === 'url' ? (
+                                                                        <input
+                                                                            type="text"
+                                                                            placeholder="https://..."
+                                                                            value={img.url}
+                                                                            onChange={(e) => {
+                                                                                handleColorImageChange(colorIdx, imgIdx, 'url', e.target.value);
+                                                                                markDirty();
+                                                                            }}
+                                                                        />
+                                                                    ) : (
+                                                                        <div className="mini-file-upload">
+                                                                            <input
+                                                                                type="file"
+                                                                                id={`color-${colorIdx}-img-${imgIdx}`}
+                                                                                onChange={(e) => {
+                                                                                    handleColorImageUpload(colorIdx, imgIdx, e);
+                                                                                    markDirty();
+                                                                                }}
+                                                                                style={{ display: 'none' }}
+                                                                            />
+                                                                            <label htmlFor={`color-${colorIdx}-img-${imgIdx}`} className="mini-dropzone">
+                                                                                {img.url ? '✓ Image Ready' : '📁 Select'}
+                                                                            </label>
+                                                                        </div>
+                                                                    )}
+                                                                </div>
+
+                                                                {img.url && (
+                                                                    <div className="mini-preview-wrap">
+                                                                        <img src={img.url} alt="preview" />
+                                                                        <button
+                                                                            type="button"
+                                                                            className="delete-img-float"
+                                                                            onClick={() => {
+                                                                                const images = color.images.filter((_, i) => i !== imgIdx);
+                                                                                const colors = [...newProduct.colors];
+                                                                                colors[colorIdx].images = images;
+                                                                                setNewProduct({ ...newProduct, colors });
+                                                                                markDirty();
+                                                                            }}
+                                                                        >×</button>
+                                                                    </div>
+                                                                )}
+                                                            </div>
+                                                        ))}
+                                                        <button
+                                                            type="button"
+                                                            className="add-image-card-btn"
+                                                            onClick={() => {
+                                                                handleAddColorImage(colorIdx);
+                                                                markDirty();
+                                                            }}
+                                                        >
+                                                            <span className="plus">+</span>
+                                                            <span>Add Image</span>
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                            </div>
                                         ))}
+                                        <button
+                                            type="button"
+                                            className="add-color-btn-large"
+                                            onClick={() => {
+                                                handleAddColor();
+                                                markDirty();
+                                            }}
+                                        >
+                                            ✨ Add Another Color Variant
+                                        </button>
+                                    </div>
+
+                                    <div className="sizes-grid-enhanced">
+                                        <label className="full-width">Available Sizes for this Product</label>
+                                        <div className="chips-container">
+                                            {availableSizes.map(size => (
+                                                <button
+                                                    key={size}
+                                                    type="button"
+                                                    className={`size-chip-enhanced ${newProduct.sizes.includes(size) ? 'selected' : ''}`}
+                                                    onClick={() => {
+                                                        handleSizeToggle(size);
+                                                        markDirty();
+                                                    }}
+                                                >
+                                                    {size}
+                                                </button>
+                                            ))}
+                                        </div>
                                     </div>
                                 </section>
 
                                 <div className="form-actions sticky">
+                                    {isDirty && <span className="dirty-tag">⚠️ Unsaved Changes</span>}
                                     <button type="button" className="cancel-btn" onClick={() => {
                                         setIsAdding(false);
                                         setIsEditing(false);
                                         setEditingId(null);
                                         resetForm();
-                                    }}>Discard Changes</button>
-                                    <button type="submit" className="save-btn large">{isEditing ? 'Save Changes' : 'Publish Product to Store'}</button>
+                                        setIsDirty(false);
+                                    }}>Discard</button>
+                                    <button type="submit" className="save-btn large">{isEditing ? 'Save Changes' : 'Publish Product'}</button>
                                 </div>
                             </form>
                         </div>
@@ -650,9 +755,275 @@ const AdminProducts = () => {
                 .discount-calc { display: block; margin-top: 8px; font-size: 0.85rem; color: #2e7d32; }
                 .text-btn { background: none; border: none; color: #1a1a1a; font-weight: 600; text-decoration: underline; margin-top: 10px; cursor: pointer; }
                 
-                .color-input-row { display: flex; gap: 10px; margin-bottom: 10px; }
-                .color-input-row input[type="text"] { flex: 1; }
-                .color-input-row input[type="color"] { width: 50px; padding: 2px; }
+                .color-variant-block {
+                    background: #fdfdfd;
+                    border: 1px solid #eee;
+                    border-radius: 12px;
+                    padding: 20px;
+                    margin-bottom: 25px;
+                }
+                .color-header-row {
+                    display: flex;
+                    justify-content: space-between;
+                    align-items: center;
+                    margin-bottom: 20px;
+                }
+                .color-basic-info {
+                    display: flex;
+                    gap: 10px;
+                    flex: 1;
+                }
+                .remove-color-btn {
+                    background: #fff5f5;
+                    color: #e53e3e;
+                    border: 1px solid #fed7d7;
+                    padding: 8px 15px;
+                    border-radius: 8px;
+                    cursor: pointer;
+                    font-size: 0.8rem;
+                }
+                .color-images-section label {
+                    display: block;
+                    margin-bottom: 12px;
+                    font-size: 0.8rem;
+                    color: #718096;
+                }
+                .color-images-grid {
+                    display: flex;
+                    flex-wrap: wrap;
+                    gap: 15px;
+                }
+                .color-image-item {
+                    position: relative;
+                    width: 120px;
+                    background: white;
+                    border: 1px solid #eee;
+                    border-radius: 8px;
+                    padding: 8px;
+                    display: flex;
+                    flex-direction: column;
+                    gap: 5px;
+                }
+                .mini-upload-tabs {
+                    display: flex;
+                    gap: 4px;
+                    margin-bottom: 8px;
+                }
+                .mini-upload-tabs button {
+                    flex: 1;
+                    font-size: 0.65rem;
+                    padding: 4px;
+                    border: 1px solid #eee;
+                    background: #f8f9fa;
+                    border-radius: 4px;
+                    cursor: pointer;
+                }
+                .mini-upload-tabs button.active {
+                    background: #1a1a1a;
+                    color: white;
+                    border-color: #1a1a1a;
+                }
+                .color-first-visuals {
+                    background: #fff;
+                    padding: 0;
+                }
+                .premium-card {
+                    background: #fcfcfc;
+                    border: 1px solid #eef2f6;
+                    border-radius: 16px;
+                    padding: 25px;
+                    margin-bottom: 30px;
+                    box-shadow: 0 4px 15px rgba(0,0,0,0.02);
+                }
+                .form-group-compact {
+                    display: flex;
+                    flex-direction: column;
+                    gap: 6px;
+                    flex: 1;
+                }
+                .form-group-compact label {
+                    font-size: 0.75rem;
+                    font-weight: 700;
+                    color: #64748b;
+                    text-transform: uppercase;
+                }
+                .color-images-grid-enhanced {
+                    display: grid;
+                    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+                    gap: 15px;
+                    margin-top: 15px;
+                }
+                .enhanced-image-card {
+                    background: white;
+                    border: 1px solid #edf2f7;
+                    border-radius: 12px;
+                    padding: 10px;
+                    display: flex;
+                    flex-direction: column;
+                    gap: 10px;
+                    position: relative;
+                }
+                .mini-preview-wrap {
+                    height: 100px;
+                    border-radius: 8px;
+                    overflow: hidden;
+                    position: relative;
+                }
+                .mini-preview-wrap img {
+                    width: 100%;
+                    height: 100%;
+                    object-fit: cover;
+                }
+                .delete-img-float {
+                    position: absolute;
+                    top: 5px;
+                    right: 5px;
+                    background: rgba(229, 62, 62, 0.9);
+                    color: white;
+                    border: none;
+                    width: 20px;
+                    height: 20px;
+                    border-radius: 50%;
+                    cursor: pointer;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    font-size: 12px;
+                }
+                .add-image-card-btn {
+                    height: 100%;
+                    min-height: 150px;
+                    border: 2px dashed #e2e8f0;
+                    background: #f8fafc;
+                    border-radius: 12px;
+                    display: flex;
+                    flex-direction: column;
+                    align-items: center;
+                    justify-content: center;
+                    gap: 8px;
+                    color: #94a3b8;
+                    cursor: pointer;
+                    transition: all 0.2s;
+                }
+                .add-image-card-btn:hover {
+                    border-color: #cbd5e1;
+                    background: #f1f5f9;
+                    color: #64748b;
+                }
+                .add-color-btn-large {
+                    width: 100%;
+                    padding: 15px;
+                    background: #fff;
+                    border: 2px dashed #c5a059;
+                    color: #c5a059;
+                    border-radius: 12px;
+                    font-weight: 800;
+                    cursor: pointer;
+                    transition: all 0.3s;
+                }
+                .add-color-btn-large:hover {
+                    background: #fffaf0;
+                    transform: translateY(-2px);
+                }
+                .dirty-tag {
+                    color: #c5a059;
+                    font-weight: 700;
+                    font-size: 0.8rem;
+                    margin-right: auto;
+                }
+                .mini-dropzone {
+                    display: block;
+                    padding: 8px;
+                    border: 1px dashed #cbd5e1;
+                    border-radius: 4px;
+                    font-size: 0.7rem;
+                    text-align: center;
+                    cursor: pointer;
+                }
+                .chips-container {
+                    display: flex;
+                    flex-wrap: wrap;
+                    gap: 8px;
+                    margin-top: 10px;
+                }
+                .size-chip-enhanced {
+                    padding: 8px 16px;
+                    border: 1px solid #e2e8f0;
+                    background: white;
+                    border-radius: 8px;
+                    font-weight: 600;
+                    cursor: pointer;
+                }
+                .size-chip-enhanced.selected {
+                    background: #1a1a1a;
+                    color: white;
+                    border-color: #1a1a1a;
+                }
+                    border: 1px solid #eee;
+                    border-radius: 4px;
+                    overflow: hidden;
+                }
+                .mini-upload-tabs button {
+                    flex: 1;
+                    padding: 3px;
+                    border: none;
+                    background: #f8f9fa;
+                    cursor: pointer;
+                }
+                .mini-upload-tabs button.active {
+                    background: #1a1a1a;
+                    color: white;
+                }
+                .mini-file-upload input { display: none; }
+                .mini-file-upload label {
+                    display: block;
+                    padding: 5px;
+                    background: #f1f1f1;
+                    border-radius: 4px;
+                    text-align: center;
+                    cursor: pointer;
+                    font-size: 0.7rem;
+                    margin: 0;
+                }
+                .color-image-item input[type="text"] {
+                    font-size: 0.7rem;
+                    padding: 5px;
+                }
+                .mini-img-preview {
+                    width: 100%;
+                    height: 80px;
+                    object-fit: cover;
+                    border-radius: 4px;
+                }
+                .btn-delete-img {
+                    position: absolute;
+                    top: -5px;
+                    right: -5px;
+                    width: 20px;
+                    height: 20px;
+                    background: #ff4d4f;
+                    color: white;
+                    border: none;
+                    border-radius: 50%;
+                    cursor: pointer;
+                    font-size: 12px;
+                }
+                .add-color-image-btn {
+                    width: 120px;
+                    height: 150px;
+                    border: 2px dashed #eee;
+                    border-radius: 8px;
+                    background: none;
+                    font-size: 1.5rem;
+                    color: #ccc;
+                    cursor: pointer;
+                    transition: all 0.2s;
+                }
+                .add-color-image-btn:hover {
+                    border-color: #1a1a1a;
+                    color: #1a1a1a;
+                    background: #fcfcfc;
+                }
                 
                 .sizes-grid { display: flex; flex-wrap: wrap; gap: 10px; width: 100%; }
                 .size-chip { 

@@ -18,122 +18,34 @@ const Products = () => {
     const allProducts = [
         {
             id: 1,
-            name: 'Luxury Chronograph Watch',
-            category: 'Watches',
-            price: 12999,
-            originalPrice: 18999,
-            discount: 31,
-            image: 'https://images.unsplash.com/photo-1524592094714-0f0654e20314?w=600&q=80',
-            rating: 4.8,
+            name: 'Premium Wool Blazer',
+            category: 'jackets',
+            price: 8999,
+            originalPrice: 12999,
+            discount: 30,
+            image: 'https://images.unsplash.com/photo-1594932224031-9ffb0d96ee7c?w=600&q=80',
+            rating: 4.9,
             reviews: 156,
-            colors: ['#000000', '#C0C0C0', '#B8860B'],
-            sizes: ['Adjustable'],
+            colors: ['#000080', '#36454F'],
+            sizes: ['M', 'L', 'XL'],
             stock: 15,
             sold: 450,
             isNew: true
         },
         {
             id: 2,
-            name: 'Classic Aviator Sunglasses',
-            category: 'Eyewear',
-            price: 5599,
-            image: 'https://images.unsplash.com/photo-1572635196237-14b3f281503f?w=600&q=80',
-            rating: 4.5,
+            name: 'Slim Fit Oxford Shirt',
+            category: 'shirts',
+            price: 2499,
+            originalPrice: 3499,
+            discount: 28,
+            image: 'https://images.unsplash.com/photo-1596755094514-f87e34085b2c?w=600&q=80',
+            rating: 4.7,
             reviews: 89,
-            colors: ['#000000', '#8B4513'],
-            sizes: ['One Size'],
+            colors: ['#FFFFFF', '#ADD8E6'],
+            sizes: ['S', 'M', 'L', 'XL'],
             stock: 32,
             sold: 210,
-            isNew: false
-        },
-        {
-            id: 3,
-            name: 'Genuine Leather Briefcase',
-            category: 'Bags',
-            price: 15999,
-            originalPrice: 23999,
-            discount: 33,
-            image: 'https://images.unsplash.com/photo-1548036328-c9fa89d128fa?w=600&q=80',
-            rating: 4.9,
-            reviews: 67,
-            colors: ['#000000', '#8B4513'],
-            sizes: ['Standard'],
-            stock: 10,
-            sold: 124,
-            isNew: false
-        },
-        {
-            id: 4,
-            name: 'Minimalist Bifold Wallet',
-            category: 'Wallets',
-            price: 2399,
-            image: 'https://images.unsplash.com/photo-1627123424574-724758594e93?w=600&q=80',
-            rating: 4.6,
-            reviews: 245,
-            colors: ['#000000', '#8B4513', '#2F4F4F'],
-            sizes: ['One Size'],
-            stock: 85,
-            sold: 980,
-            isNew: true
-        },
-        {
-            id: 5,
-            name: 'Premium Silk Tie Set',
-            category: 'Ties',
-            price: 1999,
-            image: 'https://images.unsplash.com/photo-1589756823851-ede1be674188?w=600&q=80',
-            rating: 4.7,
-            reviews: 112,
-            colors: ['#8B0000', '#000080', '#000000'],
-            sizes: ['Standard'],
-            stock: 45,
-            sold: 340,
-            isNew: false
-        },
-        {
-            id: 6,
-            name: 'Silver Cufflink Set',
-            category: 'Cufflinks',
-            price: 3199,
-            originalPrice: 4799,
-            discount: 33,
-            image: 'https://images.unsplash.com/photo-1621335829175-95f437384d7c?w=600&q=80',
-            rating: 4.8,
-            reviews: 78,
-            colors: ['#C0C0C0', '#FFD700'],
-            sizes: ['One Size'],
-            stock: 25,
-            sold: 156,
-            isNew: true
-        },
-        {
-            id: 7,
-            name: 'Top Grain Leather Belt',
-            category: 'Belts',
-            price: 3999,
-            image: 'https://images.unsplash.com/photo-1624222247344-550fb60583bb?w=600&q=80',
-            rating: 4.6,
-            reviews: 189,
-            colors: ['#000000', '#8B4513', '#62422C'],
-            sizes: ['32', '34', '36', '38'],
-            stock: 50,
-            sold: 670,
-            isNew: false
-        },
-        {
-            id: 8,
-            name: 'Automatic Mechanical Watch',
-            category: 'Watches',
-            price: 24999,
-            originalPrice: 34999,
-            discount: 28,
-            image: 'https://images.unsplash.com/photo-1508685096489-7abac47d3ad7?w=600&q=80',
-            rating: 5.0,
-            reviews: 43,
-            colors: ['#C0C0C0', '#FFD700'],
-            sizes: ['Adjustable'],
-            stock: 5,
-            sold: 89,
             isNew: true
         }
     ];
@@ -221,11 +133,6 @@ const Products = () => {
             <Navbar onSearch={handleSearch} onFilter={handleFilter} />
 
             <div className="products-container">
-                <div className="products-header">
-                    <h1>Men's Collection</h1>
-                    <p className="products-count">{filteredProducts.length} Products</p>
-                </div>
-
                 {/* Active Filters */}
                 {(sortBy || selectedCategory || selectedSize) && (
                     <div className="active-filters">

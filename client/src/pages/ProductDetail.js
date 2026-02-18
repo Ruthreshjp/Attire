@@ -12,6 +12,7 @@ const ProductDetail = () => {
     const [product, setProduct] = useState(null);
     const [loading, setLoading] = useState(true);
     const [selectedImage, setSelectedImage] = useState(0);
+    const [currentImageSet, setCurrentImageSet] = useState([]);
     const [selectedSize, setSelectedSize] = useState('');
     const [selectedColor, setSelectedColor] = useState('');
     const [quantity, setQuantity] = useState(1);
@@ -95,8 +96,23 @@ const ProductDetail = () => {
                 const data = await response.json();
                 if (data.success) {
                     setProduct(data.product);
+
+                    // Track Recently Viewed
+                    const viewedIds = JSON.parse(localStorage.getItem('recentlyViewed') || '[]');
+                    const updatedViewed = [data.product._id, ...viewedIds.filter(vId => vId !== data.product._id)].slice(0, 10);
+                    localStorage.setItem('recentlyViewed', JSON.stringify(updatedViewed));
+
                     if (data.product.colors && data.product.colors.length > 0) {
-                        setSelectedColor(data.product.colors[0].hexCode || data.product.colors[0].hex || '');
+                        const firstColor = data.product.colors[0];
+                        setSelectedColor(firstColor.hexCode || firstColor.hex || '');
+                        // If color has specific images, use them
+                        if (firstColor.images && firstColor.images.length > 0) {
+                            setCurrentImageSet(firstColor.images);
+                        } else {
+                            setCurrentImageSet(data.product.images || []);
+                        }
+                    } else {
+                        setCurrentImageSet(data.product.images || []);
                     }
                 }
             } catch (err) {
@@ -164,7 +180,7 @@ const ProductDetail = () => {
                     {/* Product Images */}
                     <div className="product-images">
                         <div className="main-image">
-                            <img src={getImageUrl(product.images[selectedImage])} alt={product.name} />
+                            <img src={getImageUrl((currentImageSet.length > 0 ? currentImageSet : product.images)[selectedImage])} alt={product.name} />
                             <button
                                 className={`wishlist-btn-large ${wishlisted ? 'active' : ''}`}
                                 onClick={handleWishlist}
@@ -175,7 +191,7 @@ const ProductDetail = () => {
                             </button>
                         </div>
                         <div className="image-thumbnails">
-                            {(product.images || []).map((img, index) => (
+                            {(currentImageSet.length > 0 ? currentImageSet : (product.images || [])).map((img, index) => (
                                 <div
                                     key={index}
                                     className={`thumbnail ${selectedImage === index ? 'active' : ''}`}
@@ -225,6 +241,17 @@ const ProductDetail = () => {
                             <p className="tax-info">Inclusive of all taxes</p>
                         </div>
 
+                        {product.isSpecialOffer && product.couponCode && (
+                            <div className="special-promo-card">
+                                <div className="promo-label">SPECIAL OFFER PROMO</div>
+                                <div className="promo-code-display">
+                                    <code>{product.couponCode}</code>
+                                    <button onClick={() => navigator.clipboard.writeText(product.couponCode)}>📋 Copy</button>
+                                </div>
+                                <p>Apply this code in your cart for the special offer price!</p>
+                            </div>
+                        )}
+
                         {/* Color Selection */}
                         <div className="selection-section">
                             <label>Select Color:</label>
@@ -233,7 +260,15 @@ const ProductDetail = () => {
                                     <div
                                         key={index}
                                         className={`color-option ${selectedColor === color.hexCode ? 'active' : ''}`}
-                                        onClick={() => setSelectedColor(color.hexCode)}
+                                        onClick={() => {
+                                            setSelectedColor(color.hexCode);
+                                            setSelectedImage(0);
+                                            if (color.images && color.images.length > 0) {
+                                                setCurrentImageSet(color.images);
+                                            } else {
+                                                setCurrentImageSet(product.images || []);
+                                            }
+                                        }}
                                         title={color.name}
                                     >
                                         <span
@@ -263,7 +298,22 @@ const ProductDetail = () => {
                             <a href="#size-guide" className="size-guide-link">Size Guide</a>
                         </div>
 
-                        {/* Quantity */}
+                        <div className="selection-section">
+                            <label>Availability:</label>
+                            <div className="stock-metrics-detail">
+                                <div className="detail-metric">
+                                    <span className="label">Current Stock:</span>
+                                    <span className={`value ${product.stock < 10 ? 'low' : ''}`}>
+                                        {product.stock > 0 ? `${product.stock} units available` : 'Out of Stock'}
+                                    </span>
+                                </div>
+                                <div className="detail-metric">
+                                    <span className="label">Popularity:</span>
+                                    <span className="value">{product.sold || 0} units already sold</span>
+                                </div>
+                            </div>
+                        </div>
+
                         <div className="selection-section">
                             <label>Quantity:</label>
                             <div className="quantity-selector">

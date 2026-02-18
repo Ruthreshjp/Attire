@@ -14,7 +14,7 @@ const Navbar = ({ onSearch, onFilter }) => {
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [isFilterOpen, setIsFilterOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
-  const [categories, setCategories] = useState(['Shirts']);
+  const [categories, setCategories] = useState(['shirts']);
 
   React.useEffect(() => {
     const fetchCategories = async () => {
@@ -27,8 +27,8 @@ const Navbar = ({ onSearch, onFilter }) => {
             .map(p => p.category)
             .filter(cat => cat && cat.trim() !== '');
 
-          // Combine with initial 'Shirts' and remove duplicates
-          const uniqueCategories = [...new Set(['Shirts', ...productCategories])];
+          // Combine with initial 'shirts' and remove duplicates
+          const uniqueCategories = [...new Set(['shirts', ...productCategories])];
           setCategories(uniqueCategories);
         }
       } catch (err) {
@@ -76,7 +76,7 @@ const Navbar = ({ onSearch, onFilter }) => {
           <form onSubmit={handleSearch} className="search-form">
             <input
               type="text"
-              placeholder="Search accessories..."
+              placeholder="Search for products, categories..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="search-input"

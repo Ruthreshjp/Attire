@@ -1,8 +1,9 @@
 .admin-sidebar {
     width: 280px;
     height: 100vh;
-    background-color: #ffffff;
-    color: #1a1a1a;
+    background-color: #050505;
+    /* Deep black background */
+    color: #ffffff;
     position: fixed;
     top: 0;
     left: 0;
@@ -10,8 +11,8 @@
     flex-direction: column;
     padding: 40px 0;
     z-index: 1000;
-    box-shadow: 2px 0 20px rgba(0, 0, 0, 0.05);
-    border-right: 1px solid #f0f0f0;
+    box-shadow: 10px 0 40px rgba(0, 0, 0, 0.5);
+    border-right: 1px solid rgba(255, 255, 255, 0.03);
 }
 
 .admin-logo {
@@ -24,7 +25,8 @@
     font-size: 1.6rem;
     letter-spacing: 1px;
     font-weight: 700;
-    color: #000;
+    color: #ffffff;
+    /* White logo text */
 }
 
 .admin-logo span {
@@ -45,7 +47,8 @@
 
 .nav-item {
     padding: 16px 20px;
-    color: #666;
+    color: #999;
+    /* Grey text for inactive */
     text-decoration: none;
     display: flex;
     align-items: center;
@@ -64,13 +67,14 @@
 }
 
 .nav-item:hover {
-    background-color: #f8f9fa;
-    color: #000;
+    background-color: rgba(255, 255, 255, 0.05);
+    color: #ffffff;
 }
 
 .nav-item.active {
-    background-color: #f0f0f0;
-    color: #000;
+    background-color: #c5a059;
+    /* Gold for active */
+    color: #ffffff;
     font-weight: 600;
 }
 
@@ -80,7 +84,7 @@
 
 .sidebar-divider {
     height: 1px;
-    background-color: #f0f0f0;
+    background-color: rgba(255, 255, 255, 0.05);
     margin: 30px 20px;
 }
 

@@ -79,7 +79,7 @@ const orderSchema = new mongoose.Schema({
 });
 
 // Generate order number
-orderSchema.pre('save', async function (next) {
+orderSchema.pre('validate', async function (next) {
     if (!this.orderNumber) {
         const timestamp = Date.now().toString().slice(-8);
         const random = Math.floor(Math.random() * 1000).toString().padStart(3, '0');

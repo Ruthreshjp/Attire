@@ -104,7 +104,7 @@ const ProductDetail = () => {
 
                     if (data.product.colors && data.product.colors.length > 0) {
                         const firstColor = data.product.colors[0];
-                        setSelectedColor(firstColor.hexCode || firstColor.hex || '');
+                        setSelectedColor(firstColor.name || '');
                         // If color has specific images, use them
                         if (firstColor.images && firstColor.images.length > 0) {
                             setCurrentImageSet(firstColor.images);
@@ -230,12 +230,22 @@ const ProductDetail = () => {
 
                         <div className="product-price-section">
                             <div className="price-wrapper">
-                                {product.originalPrice && (
-                                    <span className="original-price">₹{product.originalPrice.toLocaleString('en-IN')}</span>
-                                )}
-                                <span className="current-price">₹{product.price.toLocaleString('en-IN')}</span>
-                                {product.discount && (
-                                    <span className="discount-badge">-{product.discount}% OFF</span>
+                                {product.isSpecialOffer && product.specialPrice ? (
+                                    <>
+                                        {product.originalPrice && <span className="original-price">₹{product.originalPrice.toLocaleString('en-IN')}</span>}
+                                        <span className="current-price">₹{product.specialPrice.toLocaleString('en-IN')}</span>
+                                        {product.extraDiscount && <span className="discount-badge">+{product.extraDiscount}% Extra</span>}
+                                    </>
+                                ) : (
+                                    <>
+                                        {product.originalPrice && (
+                                            <span className="original-price">₹{product.originalPrice.toLocaleString('en-IN')}</span>
+                                        )}
+                                        <span className="current-price">₹{product.price.toLocaleString('en-IN')}</span>
+                                        {product.discount && (
+                                            <span className="discount-badge">-{product.discount}% OFF</span>
+                                        )}
+                                    </>
                                 )}
                             </div>
                             <p className="tax-info">Inclusive of all taxes</p>
@@ -248,6 +258,7 @@ const ProductDetail = () => {
                                     <code>{product.couponCode}</code>
                                     <button onClick={() => navigator.clipboard.writeText(product.couponCode)}>📋 Copy</button>
                                 </div>
+                                <p><strong>Use promo code to get {product.extraDiscount}% extra discount!</strong></p>
                                 <p>Apply this code in your cart for the special offer price!</p>
                             </div>
                         )}
@@ -259,9 +270,9 @@ const ProductDetail = () => {
                                 {(product.colors || []).map((color, index) => (
                                     <div
                                         key={index}
-                                        className={`color-option ${selectedColor === color.hexCode ? 'active' : ''}`}
+                                        className={`color-option ${selectedColor === color.name ? 'active' : ''}`}
                                         onClick={() => {
-                                            setSelectedColor(color.hexCode);
+                                            setSelectedColor(color.name);
                                             setSelectedImage(0);
                                             if (color.images && color.images.length > 0) {
                                                 setCurrentImageSet(color.images);

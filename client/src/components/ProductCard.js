@@ -104,7 +104,13 @@ const ProductCard = ({ product }) => {
                 )}
 
                 <div className="product-price">
-                    {hasDiscount ? (
+                    {product.isSpecialOffer && product.specialPrice ? (
+                        <>
+                            {product.originalPrice && <span className="original-price">₹{product.originalPrice.toLocaleString('en-IN')}</span>}
+                            <span className="current-price discounted-price">₹{product.specialPrice.toLocaleString('en-IN')}</span>
+                            {product.extraDiscount && <span className="offer-percentage">+{product.extraDiscount}% EXTRA</span>}
+                        </>
+                    ) : hasDiscount ? (
                         <>
                             <span className="original-price">₹{product.originalPrice.toLocaleString('en-IN')}</span>
                             <span className="current-price discounted-price">₹{product.price.toLocaleString('en-IN')}</span>

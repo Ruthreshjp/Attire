@@ -2,18 +2,39 @@ import React, { useState, useContext, useEffect } from 'react';
 import Navbar from '../components/Navbar';
 import { AuthContext } from '../context/AuthContext';
 import './Profile.css';
+import axios from 'axios';
 
 const MyOrders = () => {
-    const { user } = useContext(AuthContext);
-    const [orders, setOrders] = useState([
-        { id: '#ORD-7721', amount: 12999, status: 'Processing', date: 'Feb 13, 2024', items: 3 },
-        { id: '#ORD-7718', amount: 8999, status: 'Shipped', date: 'Feb 09, 2024', items: 1 },
-        { id: '#ORD-7710', amount: 2599, status: 'Delivered', date: 'Feb 01, 2024', items: 2 },
-    ]);
-
+    const { user, isAuthenticated } = useContext(AuthContext);
+    const [orders, setOrders] = useState([]);
+    const [loading, setLoading] = useState(true);
     const [selectedOrder, setSelectedOrder] = useState(null);
 
-    if (!user) return <div className="loading">Please login to view your orders.</div>;
+    useEffect(() => {
+        const fetchOrders = async () => {
+            if (isAuthenticated) {
+                try {
+                    const res = await axios.get('http://localhost:5000/api/orders', {
+                        headers: { 'x-auth-token': localStorage.getItem('token') }
+                    });
+                    if (res.data.success) {
+                        setOrders(res.data.orders);
+                    }
+                } catch (err) {
+                    console.error('Error fetching orders:', err);
+                } finally {
+                    setLoading(false);
+                }
+            } else {
+                setLoading(false);
+            }
+        };
+
+        fetchOrders();
+    }, [isAuthenticated]);
+
+    if (!user) return <div className="loading-container"><Navbar /><div className="loading">Please login to view your orders.</div></div>;
+    if (loading) return <div className="loading-container"><Navbar /><div className="loading">Loading orders...</div></div>;
 
     if (selectedOrder) {
         return (
@@ -25,8 +46,8 @@ const MyOrders = () => {
                     </button>
                     <header className="profile-header">
                         <div className="profile-info">
-                            <h1>Order {selectedOrder.id}</h1>
-                            <p>Placed on {selectedOrder.date} &bull; {selectedOrder.status}</p>
+                            <h1>Order {selectedOrder.orderNumber}</h1>
+                            <p>Placed on {new Date(selectedOrder.createdAt).toLocaleDateString()} &bull; {selectedOrder.orderStatus}</p>
                         </div>
                     </header>
                     <div className="profile-content">
@@ -35,19 +56,34 @@ const MyOrders = () => {
                                 <h3>Order Summary</h3>
                                 <div className="detail-row">
                                     <span>Status:</span>
-                                    <span className={`status-tag ${selectedOrder.status.toLowerCase()}`}>{selectedOrder.status}</span>
+                                    <span className={`status-tag ${selectedOrder.orderStatus.toLowerCase()}`}>{selectedOrder.orderStatus}</span>
                                 </div>
                                 <div className="detail-row">
                                     <span>Total Amount:</span>
-                                    <span className="total-price">₹{selectedOrder.amount.toLocaleString()}</span>
+                                    <span className="total-price">₹{selectedOrder.total.toLocaleString()}</span>
                                 </div>
                                 <div className="detail-row">
                                     <span>Total Items:</span>
-                                    <span>{selectedOrder.items}</span>
+                                    <span>{selectedOrder.items.reduce((sum, item) => sum + item.quantity, 0)}</span>
                                 </div>
                                 <div className="order-items-minimal">
                                     <h4>Items in this order</h4>
-                                    <p>Sample item details would appear here...</p>
+                                    <div className="items-list">
+                                        {selectedOrder.items.map((item, idx) => (
+                                            <div key={idx} className="order-item-mini">
+                                                <img src={item.image} alt={item.name} />
+                                                <div className="item-mini-info">
+                                                    <div className="item-name">{item.name}</div>
+                                                    <div className="item-meta">
+                                                        {item.size && <span>Size: {item.size}</span>}
+                                                        {item.color && <span>Color: {item.color}</span>}
+                                                        <span>Qty: {item.quantity}</span>
+                                                    </div>
+                                                    <div className="item-price">₹{item.price.toLocaleString()}</div>
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -80,15 +116,15 @@ const MyOrders = () => {
                                 </div>
                             ) : (
                                 orders.map(order => (
-                                    <div key={order.id} className="order-item-card">
+                                    <div key={order._id} className="order-item-card">
                                         <div className="order-main-info">
                                             <div className="id-date">
-                                                <span className="order-id">Order {order.id}</span>
-                                                <span className="order-date">Placed on {order.date}</span>
+                                                <span className="order-id">Order {order.orderNumber}</span>
+                                                <span className="order-date">Placed on {new Date(order.createdAt).toLocaleDateString()}</span>
                                             </div>
                                             <div className="order-status">
-                                                <span className={`status-tag ${order.status.toLowerCase()}`}>
-                                                    {order.status}
+                                                <span className={`status-tag ${order.orderStatus.toLowerCase()}`}>
+                                                    {order.orderStatus}
                                                 </span>
                                             </div>
                                         </div>
@@ -96,11 +132,11 @@ const MyOrders = () => {
                                         <div className="order-summary">
                                             <div className="summary-col">
                                                 <label>Total Items</label>
-                                                <span>{order.items} items</span>
+                                                <span>{order.items.reduce((sum, item) => sum + item.quantity, 0)} items</span>
                                             </div>
                                             <div className="summary-col">
                                                 <label>Total Amount</label>
-                                                <span className="total-price">₹{order.amount.toLocaleString()}</span>
+                                                <span className="total-price">₹{order.total.toLocaleString()}</span>
                                             </div>
                                             <div className="summary-col actions">
                                                 <button
@@ -257,6 +293,51 @@ const MyOrders = () => {
                     border-bottom: 2px solid #1a1a1a;
                     display: inline-block;
                     padding-bottom: 5px;
+                }
+                .items-list {
+                    display: flex;
+                    flex-direction: column;
+                    gap: 15px;
+                    margin-top: 10px;
+                }
+                .order-item-mini {
+                    display: flex;
+                    gap: 15px;
+                    align-items: center;
+                    padding: 10px;
+                    border-radius: 8px;
+                    background: #fdfdfd;
+                    border: 1px solid #f0f0f0;
+                }
+                .order-item-mini img {
+                    width: 60px;
+                    height: 60px;
+                    object-fit: cover;
+                    border-radius: 6px;
+                }
+                .item-mini-info {
+                    flex: 1;
+                }
+                .item-name {
+                    font-weight: 600;
+                    font-size: 0.95rem;
+                    color: #1a1a1a;
+                }
+                .item-meta {
+                    font-size: 0.8rem;
+                    color: #888;
+                    display: flex;
+                    gap: 10px;
+                }
+                .item-price {
+                    font-weight: 700;
+                    color: #1a1a1a;
+                    font-size: 0.9rem;
+                    margin-top: 2px;
+                }
+                .loading-container {
+                    padding-top: 100px;
+                    text-align: center;
                 }
             `}</style>
         </div>

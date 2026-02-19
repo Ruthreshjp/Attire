@@ -96,10 +96,16 @@ const OffersCarousel = () => {
                                         alt={offer.name}
                                         className="offer-image"
                                     />
-                                    <div className="offer-badge">{offer.discount}% OFF</div>
+                                    <div className="offer-badge">
+                                        {offer.extraDiscount ? `+${offer.extraDiscount}% EXTRA` : `${offer.discount}% OFF`}
+                                    </div>
                                 </div>
                                 <div className="offer-content">
                                     <h3 className="offer-title">{offer.name}</h3>
+                                    <div className="offer-pricing">
+                                        {offer.originalPrice && <span className="old-price">₹{offer.originalPrice}</span>}
+                                        <span className="new-price">₹{offer.specialPrice || offer.price}</span>
+                                    </div>
                                     <p className="offer-category">{offer.category}</p>
                                     <div className="offer-code">
                                         <span>Code:</span>

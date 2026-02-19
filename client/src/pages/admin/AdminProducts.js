@@ -22,7 +22,9 @@ const AdminProducts = () => {
         sizes: [],
         tags: [],
         isSpecialOffer: false,
-        couponCode: ''
+        couponCode: '',
+        specialPrice: '',
+        extraDiscount: ''
     });
 
     const [categories, setCategories] = useState(['shirts', 'pants', 't-shirts', 'joggers', 'jackets', 'suits', 'accessories']);
@@ -55,6 +57,19 @@ const AdminProducts = () => {
         setNewProduct({ ...newProduct, [name]: value });
         markDirty();
     };
+
+    // Auto-calculate extra discount when prices change
+    useEffect(() => {
+        if (newProduct.isSpecialOffer && newProduct.specialPrice > 0) {
+            const basePrice = newProduct.price > 0 ? Number(newProduct.price) : Number(newProduct.originalPrice);
+            if (basePrice > 0) {
+                const calculatedExtra = Math.round(((basePrice - Number(newProduct.specialPrice)) / basePrice) * 100);
+                if (calculatedExtra >= 0 && calculatedExtra !== Number(newProduct.extraDiscount)) {
+                    setNewProduct(prev => ({ ...prev, extraDiscount: calculatedExtra }));
+                }
+            }
+        }
+    }, [newProduct.price, newProduct.originalPrice, newProduct.specialPrice, newProduct.isSpecialOffer, newProduct.extraDiscount]);
 
     const handleSizeToggle = (size) => {
         const sizes = [...newProduct.sizes];
@@ -95,9 +110,57 @@ const AdminProducts = () => {
         });
     };
 
+    const colorMap = {
+        'white': '#ffffff',
+        'black': '#000000',
+        'red': '#ff0000',
+        'green': '#008000',
+        'blue': '#0000ff',
+        'yellow': '#ffff00',
+        'orange': '#ffa500',
+        'pink': '#ffc0cb',
+        'purple': '#800080',
+        'grey': '#808080',
+        'gray': '#808080',
+        'brown': '#a52a2a',
+        'navy': '#000080',
+        'beige': '#f5f5dc',
+        'gold': '#ffd700',
+        'silver': '#c0c0c0',
+        'maroon': '#800000',
+        'teal': '#008080',
+        'olive': '#808000',
+        'cyan': '#00ffff',
+        'magenta': '#ff00ff',
+        'lime': '#00ff00',
+        'lavender': '#e6e6fa',
+        'turquoise': '#40e0d0',
+        'beige': '#f5f5dc',
+        'ivory': '#fffff0',
+        'burgundy': '#800020',
+        'charcoal': '#36454f'
+    };
+
     const handleColorChange = (index, field, value) => {
         const colors = [...newProduct.colors];
         colors[index][field] = value;
+
+        // Auto-sync logic
+        if (field === 'hexCode') {
+            // Find name by hex
+            const normalizedValue = value.toLowerCase();
+            const foundName = Object.keys(colorMap).find(name => colorMap[name].toLowerCase() === normalizedValue);
+            if (foundName) {
+                colors[index].name = foundName.charAt(0).toUpperCase() + foundName.slice(1);
+            }
+        } else if (field === 'name') {
+            // Find hex by name
+            const normalizedValue = value.toLowerCase().trim();
+            if (colorMap[normalizedValue]) {
+                colors[index].hexCode = colorMap[normalizedValue];
+            }
+        }
+
         setNewProduct({ ...newProduct, colors });
     };
 
@@ -220,7 +283,9 @@ const AdminProducts = () => {
             sizes: [],
             tags: [],
             isSpecialOffer: false,
-            couponCode: ''
+            couponCode: '',
+            specialPrice: '',
+            extraDiscount: ''
         });
     };
 
@@ -397,17 +462,45 @@ const AdminProducts = () => {
                                         </label>
                                     </div>
                                     {newProduct.isSpecialOffer && (
-                                        <div className="form-group fadeIn">
-                                            <label>Coupon Code</label>
-                                            <input
-                                                name="couponCode"
-                                                type="text"
-                                                required
-                                                value={newProduct.couponCode}
-                                                onChange={handleInputChange}
-                                                placeholder="e.g., FESTIVE50"
-                                            />
-                                            <small>This code will be displayed in the Special Offers section.</small>
+                                        <div className="fadeIn">
+                                            <div className="form-grid">
+                                                <div className="form-group">
+                                                    <label>Coupon Code</label>
+                                                    <input
+                                                        name="couponCode"
+                                                        type="text"
+                                                        required
+                                                        value={newProduct.couponCode}
+                                                        onChange={handleInputChange}
+                                                        placeholder="e.g., FESTIVE50"
+                                                    />
+                                                </div>
+                                                <div className="form-group">
+                                                    <label>Extra Discount (%)</label>
+                                                    <input
+                                                        name="extraDiscount"
+                                                        type="number"
+                                                        value={newProduct.extraDiscount}
+                                                        onChange={handleInputChange}
+                                                        placeholder="e.g., 10"
+                                                    />
+                                                    <small className="discount-calc">Calculated automatically</small>
+                                                </div>
+                                            </div>
+                                            <div className="form-group">
+                                                <label>Special Price (for Display)</label>
+                                                <div className="price-input">
+                                                    <span>₹</span>
+                                                    <input
+                                                        name="specialPrice"
+                                                        type="number"
+                                                        value={newProduct.specialPrice}
+                                                        onChange={handleInputChange}
+                                                        placeholder="Final price with all discounts"
+                                                    />
+                                                </div>
+                                                <small>This will be displayed as the main price for special offers.</small>
+                                            </div>
                                         </div>
                                     )}
                                 </section>
@@ -1192,6 +1285,30 @@ const AdminProducts = () => {
                     width: 100%;
                     height: 100%;
                     object-fit: cover;
+                }
+                .admin-modal-overlay {
+                    position: fixed;
+                    top: 0;
+                    left: 0;
+                    width: 100%;
+                    height: 100%;
+                    background: rgba(0, 0, 0, 0.7);
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    z-index: 9999;
+                    backdrop-filter: blur(5px);
+                }
+
+                .admin-modal {
+                    background: white;
+                    border-radius: 20px;
+                    width: 90%;
+                    max-width: 800px;
+                    max-height: 90vh;
+                    overflow: hidden;
+                    box-shadow: 0 20px 50px rgba(0,0,0,0.3);
+                    position: relative;
                 }
             `}</style>
         </div>

@@ -37,6 +37,14 @@ const productSchema = new mongoose.Schema({
         min: 0,
         max: 100
     },
+    specialPrice: {
+        type: Number,
+        default: null
+    },
+    extraDiscount: {
+        type: Number,
+        default: 0
+    },
     images: [{
         url: String,
         alt: String

@@ -1,33 +1,83 @@
-import React from 'react';
+import React, { useState, useContext } from 'react';
 import Navbar from '../components/Navbar';
 import { useNavigate } from 'react-router-dom';
 import { useCart } from '../context/CartContext';
+import { AuthContext } from '../context/AuthContext';
+import axios from 'axios';
 
 const Cart = () => {
     const navigate = useNavigate();
-    const { cartItems, removeFromCart, updateQuantity, cartTotal } = useCart();
+    const { cartItems, removeFromCart, updateQuantity, cartTotal, clearCart } = useCart();
+    const { isAuthenticated } = useContext(AuthContext);
 
-    const [couponCode, setCouponCode] = React.useState('');
-    const [appliedCoupon, setAppliedCoupon] = React.useState(null);
-    const [couponError, setCouponError] = React.useState('');
+    const [couponCode, setCouponCode] = useState('');
+    const [appliedCoupon, setAppliedCoupon] = useState(null);
+    const [couponError, setCouponError] = useState('');
 
     const shipping = cartTotal > 2000 ? 0 : 150;
-    const discountAmount = appliedCoupon ? (cartTotal * (appliedCoupon.percent / 100)) : 0;
-    const total = cartTotal + shipping - discountAmount;
-
     const handleApplyCoupon = () => {
         setCouponError('');
-        // Check if any product in cart has this couponCode
         const match = cartItems.find(item => item.couponCode && item.couponCode.toLowerCase() === couponCode.toLowerCase());
 
         if (match) {
-            setAppliedCoupon({
-                code: couponCode,
-                percent: match.discount || 0
-            });
+            setAppliedCoupon(couponCode.toLowerCase());
             setCouponCode('');
         } else {
-            setCouponError('Invalid promo code for items in cart');
+            setCouponError('Invalid promo code');
+            setAppliedCoupon(null);
+        }
+    };
+
+    const discountAmount = cartItems.reduce((acc, item) => {
+        if (appliedCoupon && item.couponCode && item.couponCode.toLowerCase() === appliedCoupon) {
+            // Use specialPrice difference if available, otherwise fallback to percentage
+            if (item.specialPrice && item.specialPrice < item.price) {
+                return acc + ((item.price - item.specialPrice) * item.quantity);
+            }
+            const itemDiscount = item.extraDiscount || item.discount || 0;
+            return acc + (item.price * item.quantity * (itemDiscount / 100));
+        }
+        return acc;
+    }, 0);
+
+    const total = cartTotal + shipping - discountAmount;
+
+    const handleCheckout = async () => {
+        if (!isAuthenticated) {
+            alert('Please login to proceed to checkout');
+            navigate('/login');
+            return;
+        }
+
+        try {
+            const orderData = {
+                orderItems: cartItems,
+                shippingAddress: {
+                    street: '123 Default St',
+                    city: 'City',
+                    state: 'State',
+                    zipCode: '123456',
+                    country: 'Country'
+                },
+                paymentMethod: 'cash_on_delivery',
+                subtotal: cartTotal,
+                tax: 0,
+                shippingCost: shipping,
+                total: total
+            };
+
+            const res = await axios.post('http://localhost:5000/api/orders', orderData, {
+                headers: { 'x-auth-token': localStorage.getItem('token') }
+            });
+
+            if (res.data.success) {
+                alert('Order placed successfully!');
+                await clearCart();
+                navigate('/my-orders');
+            }
+        } catch (err) {
+            console.error('Error placing order:', err);
+            alert('Failed to place order. Please try again.');
         }
     };
 
@@ -86,7 +136,7 @@ const Cart = () => {
 
                             {appliedCoupon && (
                                 <div className="summary-row discount">
-                                    <span>Discount ({appliedCoupon.code})</span>
+                                    <span>Discount ({appliedCoupon.toUpperCase()})</span>
                                     <span>-₹{discountAmount.toLocaleString('en-IN')}</span>
                                 </div>
                             )}
@@ -102,7 +152,7 @@ const Cart = () => {
                                     <button onClick={handleApplyCoupon}>Apply</button>
                                 </div>
                                 {couponError && <p className="promo-error">{couponError}</p>}
-                                {appliedCoupon && <p className="promo-success">Coupon "{appliedCoupon.code}" applied!</p>}
+                                {appliedCoupon && <p className="promo-success">Coupon "{appliedCoupon.toUpperCase()}" applied!</p>}
                             </div>
 
                             <div className="summary-divider"></div>
@@ -110,7 +160,7 @@ const Cart = () => {
                                 <span>Total</span>
                                 <span>₹{total.toLocaleString('en-IN')}</span>
                             </div>
-                            <button className="checkout-btn">Proceed to Checkout</button>
+                            <button className="checkout-btn" onClick={handleCheckout}>Proceed to Checkout</button>
                             <button className="continue-shopping-btn" onClick={() => navigate('/products')}>
                                 Continue Shopping
                             </button>

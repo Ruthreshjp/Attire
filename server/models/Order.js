@@ -40,7 +40,7 @@ const orderSchema = new mongoose.Schema({
     paymentMethod: {
         type: String,
         required: true,
-        enum: ['credit_card', 'debit_card', 'paypal', 'cash_on_delivery']
+        enum: ['credit_card', 'debit_card', 'paypal', 'cash_on_delivery', 'razorpay']
     },
     paymentStatus: {
         type: String,
@@ -73,7 +73,13 @@ const orderSchema = new mongoose.Schema({
         default: ''
     },
     deliveredAt: Date,
-    cancelledAt: Date
+    cancelledAt: Date,
+    paymentDetails: {
+        paymentId: String,
+        orderId: String,
+        signature: String
+    },
+    expectedDelivery: Date
 }, {
     timestamps: true
 });

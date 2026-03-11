@@ -39,7 +39,8 @@ router.post('/', auth, async (req, res) => {
             subtotal,
             tax,
             shippingCost,
-            total
+            total,
+            expectedDelivery: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)
         });
 
         const createdOrder = await order.save();

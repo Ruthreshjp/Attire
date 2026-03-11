@@ -62,6 +62,24 @@ const MyOrders = () => {
                                     <span>Total Amount:</span>
                                     <span className="total-price">₹{selectedOrder.total.toLocaleString()}</span>
                                 </div>
+                                <div className="detail-row highlight">
+                                    <span>Expected Delivery:</span>
+                                    <span>{selectedOrder.expectedDelivery ? new Date(selectedOrder.expectedDelivery).toLocaleDateString() : new Date(new Date(selectedOrder.createdAt).getTime() + 7 * 24 * 60 * 60 * 1000).toLocaleDateString()}</span>
+                                </div>
+                                <div className="detail-row">
+                                    <span>Payment Method:</span>
+                                    <span style={{ textTransform: 'uppercase' }}>{selectedOrder.paymentMethod}</span>
+                                </div>
+                                {selectedOrder.paymentDetails?.paymentId && (
+                                    <div className="detail-row">
+                                        <span>Payment ID:</span>
+                                        <span className="payment-id">{selectedOrder.paymentDetails.paymentId}</span>
+                                    </div>
+                                )}
+                                <div className="detail-row">
+                                    <span>Order Time:</span>
+                                    <span>{new Date(selectedOrder.createdAt).toLocaleTimeString()}</span>
+                                </div>
                                 <div className="detail-row">
                                     <span>Total Items:</span>
                                     <span>{selectedOrder.items.reduce((sum, item) => sum + item.quantity, 0)}</span>
@@ -334,6 +352,22 @@ const MyOrders = () => {
                     color: #1a1a1a;
                     font-size: 0.9rem;
                     margin-top: 2px;
+                }
+                .detail-row.highlight {
+                    background: #fdf8e4;
+                    padding: 12px 10px;
+                    border-radius: 6px;
+                    margin: 5px 0;
+                    border: 1px solid #f9eeb8;
+                }
+                .detail-row.highlight span:last-child {
+                    color: #856404;
+                    font-weight: 700;
+                }
+                .payment-id {
+                    font-family: monospace;
+                    font-size: 0.85rem;
+                    color: #555 !important;
                 }
                 .loading-container {
                     padding-top: 100px;

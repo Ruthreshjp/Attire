@@ -5,7 +5,7 @@ import axios from 'axios';
 export const WishlistContext = createContext();
 
 export const WishlistProvider = ({ children }) => {
-    const { user, isAuthenticated } = useContext(AuthContext);
+    const { isAuthenticated } = useContext(AuthContext);
     const [wishlistItems, setWishlistItems] = useState([]);
     const [hasNewItems, setHasNewItems] = useState(false);
     const [loading, setLoading] = useState(true);
@@ -20,21 +20,25 @@ export const WishlistProvider = ({ children }) => {
                     });
                     if (res.data.success) {
                         const serverWishlist = res.data.wishlist.map(item => ({
-                            id: item._id,
-                            name: item.name,
-                            price: item.price,
+                            id: item._id || item,
+                            name: item.name || 'Product',
+                            price: item.price || 0,
                             originalPrice: item.originalPrice,
                             image: (item.images && item.images[0])
                                 ? (typeof item.images[0] === 'string' ? item.images[0] : item.images[0].url)
-                                : item.image,
+                                : (item.image || ''),
                             category: item.category,
-                            stock: item.stock,
+                            stock: item.stock || 0,
                             inStock: (item.stock || 0) > 0,
                         }));
                         setWishlistItems(serverWishlist);
                     }
                 } catch (err) {
                     console.error('Error fetching wishlist:', err);
+                    if (err.response && err.response.status === 401) {
+                        // Token expired or invalid, clear server-side state
+                        setWishlistItems([]);
+                    }
                 }
             } else {
                 // Not authenticated - loaded from local storage
@@ -73,15 +77,15 @@ export const WishlistProvider = ({ children }) => {
                 });
                 if (res.data.success) {
                     const serverWishlist = res.data.wishlist.map(item => ({
-                        id: item._id,
-                        name: item.name,
-                        price: item.price,
+                        id: item._id || item,
+                        name: item.name || 'Product',
+                        price: item.price || 0,
                         originalPrice: item.originalPrice,
                         image: (item.images && item.images[0])
                             ? (typeof item.images[0] === 'string' ? item.images[0] : item.images[0].url)
-                            : item.image,
+                            : (item.image || ''),
                         category: item.category,
-                        stock: item.stock,
+                        stock: item.stock || 0,
                         inStock: (item.stock || 0) > 0,
                     }));
                     setWishlistItems(serverWishlist);
@@ -89,17 +93,39 @@ export const WishlistProvider = ({ children }) => {
                 }
             } catch (err) {
                 console.error('Error adding to server wishlist:', err);
+                if (err.response && err.response.status === 401) {
+                    // Fallback to local storage addition if unauthorized
+                    const productId = product._id || product.id;
+                    setWishlistItems(prev => {
+                        if (prev.find(item => item.id.toString() === productId.toString())) return prev;
+                        setHasNewItems(true);
+                        const displayImage = product.images && product.images[0]
+                            ? (typeof product.images[0] === 'string' ? product.images[0] : product.images[0].url)
+                            : product.image;
+
+                        return [...prev, {
+                            id: productId.toString(),
+                            name: product.name,
+                            price: product.price,
+                            originalPrice: product.originalPrice,
+                            image: displayImage,
+                            category: product.category,
+                            stock: product.stock,
+                            inStock: (product.stock || 0) > 0,
+                        }];
+                    });
+                }
             }
         } else {
             setWishlistItems(prev => {
-                if (prev.find(item => item.id === productId)) return prev;
+                if (prev.find(item => item.id.toString() === productId.toString())) return prev;
                 setHasNewItems(true);
                 const displayImage = product.images && product.images[0]
                     ? (typeof product.images[0] === 'string' ? product.images[0] : product.images[0].url)
                     : product.image;
 
                 return [...prev, {
-                    id: productId,
+                    id: productId.toString(),
                     name: product.name,
                     price: product.price,
                     originalPrice: product.originalPrice,
@@ -112,20 +138,25 @@ export const WishlistProvider = ({ children }) => {
         }
     };
 
-    const removeFromWishlist = async (productId) => {
+    const removeFromWishlist = async (idToRemove) => {
+        if (!idToRemove) return;
+        const targetId = idToRemove.toString();
+
         if (isAuthenticated) {
             try {
-                const res = await axios.delete(`http://localhost:5000/api/wishlist/${productId}`, {
+                const res = await axios.delete(`http://localhost:5000/api/wishlist/${targetId}`, {
                     headers: { 'x-auth-token': localStorage.getItem('token') }
                 });
                 if (res.data.success) {
-                    setWishlistItems(prev => prev.filter(item => item.id !== productId));
+                    setWishlistItems(prev => prev.filter(item => item.id.toString() !== targetId));
                 }
             } catch (err) {
                 console.error('Error removing from server wishlist:', err);
+                // Fallback to local filtering if server fails
+                setWishlistItems(prev => prev.filter(item => item.id.toString() !== targetId));
             }
         } else {
-            setWishlistItems(prev => prev.filter(item => item.id !== productId));
+            setWishlistItems(prev => prev.filter(item => item.id.toString() !== targetId));
         }
     };
 
@@ -139,7 +170,9 @@ export const WishlistProvider = ({ children }) => {
     };
 
     const isWishlisted = (productId) => {
-        return wishlistItems.some(item => item.id === productId);
+        if (!productId) return false;
+        const targetId = productId.toString();
+        return wishlistItems.some(item => item.id.toString() === targetId);
     };
 
     const markSeen = () => {

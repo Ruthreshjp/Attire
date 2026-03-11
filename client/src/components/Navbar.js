@@ -71,81 +71,83 @@ const Navbar = ({ onSearch, onFilter }) => {
           <span className="logo-text">A T T I R E</span>
         </div>
 
-        {/* Search Bar - Desktop */}
-        <div className="navbar-search-desktop">
-          <form onSubmit={handleSearch} className="search-form">
-            <input
-              type="text"
-              placeholder="Search for products, categories..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="search-input"
-            />
-            <button type="submit" className="search-button">
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <circle cx="11" cy="11" r="8" />
-                <path d="m21 21-4.35-4.35" />
-              </svg>
-            </button>
-
-            {/* Filter Button Integrated with Search */}
-            <div className="filter-dropdown">
-              <button
-                type="button"
-                className="filter-icon-near-search"
-                onClick={() => setIsFilterOpen(!isFilterOpen)}
-              >
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <line x1="4" y1="6" x2="20" y2="6" />
-                  <line x1="4" y1="12" x2="20" y2="12" />
-                  <line x1="4" y1="18" x2="20" y2="18" />
-                  <circle cx="7" cy="6" r="2" fill="currentColor" />
-                  <circle cx="14" cy="12" r="2" fill="currentColor" />
-                  <circle cx="17" cy="18" r="2" fill="currentColor" />
+        {/* Center Group: Search + Navigation */}
+        <div className="navbar-center-section">
+          {/* Search Bar - Desktop */}
+          <div className="navbar-search-desktop">
+            <form onSubmit={handleSearch} className="search-form">
+              <input
+                type="text"
+                placeholder="Search for products, categories..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="search-input"
+              />
+              <button type="submit" className="search-button">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <circle cx="11" cy="11" r="8" />
+                  <path d="m21 21-4.35-4.35" />
                 </svg>
               </button>
 
-              {isFilterOpen && (
-                <div className="filter-dropdown-content">
-                  <div className="filter-section">
-                    <h4>Sort By Price</h4>
-                    <button type="button" onClick={() => handleFilter('sort', 'price-low')}>
-                      Price: Low to High
-                    </button>
-                    <button type="button" onClick={() => handleFilter('sort', 'price-high')}>
-                      Price: High to Low
-                    </button>
-                  </div>
+              <div className="filter-dropdown">
+                <button
+                  type="button"
+                  className="filter-icon-near-search"
+                  onClick={() => setIsFilterOpen(!isFilterOpen)}
+                >
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <line x1="4" y1="6" x2="20" y2="6" />
+                    <line x1="4" y1="12" x2="20" y2="12" />
+                    <line x1="4" y1="18" x2="20" y2="18" />
+                    <circle cx="7" cy="6" r="2" fill="currentColor" />
+                    <circle cx="14" cy="12" r="2" fill="currentColor" />
+                    <circle cx="17" cy="18" r="2" fill="currentColor" />
+                  </svg>
+                </button>
 
-                  <div className="filter-section">
-                    <h4>Category</h4>
-                    {categories.map(cat => (
-                      <button key={cat} type="button" onClick={() => handleFilter('category', cat.toLowerCase())}>
-                        {cat}
+                {isFilterOpen && (
+                  <div className="filter-dropdown-content">
+                    <div className="filter-section">
+                      <h4>Sort By Price</h4>
+                      <button type="button" onClick={() => handleFilter('sort', 'price-low')}>
+                        Price: Low to High
                       </button>
-                    ))}
+                      <button type="button" onClick={() => handleFilter('sort', 'price-high')}>
+                        Price: High to Low
+                      </button>
+                    </div>
+
+                    <div className="filter-section">
+                      <h4>Category</h4>
+                      {categories.map(cat => (
+                        <button key={cat} type="button" onClick={() => handleFilter('category', cat.toLowerCase())}>
+                          {cat}
+                        </button>
+                      ))}
+                    </div>
+
+                    <button
+                      type="button"
+                      className="clear-filters"
+                      onClick={() => handleFilter('clear', null)}
+                    >
+                      Clear All Filters
+                    </button>
                   </div>
+                )}
+              </div>
+            </form>
+          </div>
 
-                  <button
-                    type="button"
-                    className="clear-filters"
-                    onClick={() => handleFilter('clear', null)}
-                  >
-                    Clear All Filters
-                  </button>
-                </div>
-              )}
-            </div>
-          </form>
+          {/* Navigation Links */}
+          <ul className={`navbar-menu ${isMenuOpen ? 'active' : ''}`}>
+            <li><Link to="/">Home</Link></li>
+            <li><Link to="/products">Shop</Link></li>
+            <li><Link to="/about">About</Link></li>
+            {user && user.role === 1 && <li><Link to="/admin">Dashboard</Link></li>}
+          </ul>
         </div>
-
-        {/* Navigation Links */}
-        <ul className={`navbar-menu ${isMenuOpen ? 'active' : ''}`}>
-          <li><Link to="/">Home</Link></li>
-          <li><Link to="/products">Shop</Link></li>
-          <li><Link to="/about">About</Link></li>
-          {user && user.role === 1 && <li><Link to="/admin">Dashboard</Link></li>}
-        </ul>
 
         {/* Right Side Icons */}
         <div className="navbar-actions">
@@ -161,7 +163,7 @@ const Navbar = ({ onSearch, onFilter }) => {
           </button>
 
           <div
-            onClick={() => handleProtectedAction('/wishlist')}
+            onClick={() => navigate('/wishlist')}
             className="wishlist-icon"
             style={{ cursor: 'pointer' }}
           >
@@ -172,7 +174,7 @@ const Navbar = ({ onSearch, onFilter }) => {
           </div>
 
           <div
-            onClick={() => handleProtectedAction('/cart')}
+            onClick={() => navigate('/cart')}
             className="cart-icon"
             style={{ cursor: 'pointer' }}
           >

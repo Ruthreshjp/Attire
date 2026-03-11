@@ -29,6 +29,24 @@ app.use('/api/wishlist', require('./routes/wishlist'));
 app.use('/api/orders', require('./routes/orders'));
 app.use('/api/content', require('./routes/pageContent'));
 
+// Image Proxy Route to bypass CORS
+const axios = require('axios');
+app.get('/api/proxy-image', async (req, res) => {
+    try {
+        const imageUrl = req.query.url;
+        if (!imageUrl) {
+            return res.status(400).json({ error: 'URL is required' });
+        }
+        const response = await axios.get(imageUrl, { responseType: 'arraybuffer' });
+        const contentType = response.headers['content-type'];
+        res.set('Content-Type', contentType);
+        res.send(response.data);
+    } catch (err) {
+        console.error('Proxy error:', err.message);
+        res.status(500).json({ error: 'Failed to fetch image' });
+    }
+});
+
 // Test Route
 app.get('/', (req, res) => {
     res.json({ message: 'Attire E-commerce API is running' });

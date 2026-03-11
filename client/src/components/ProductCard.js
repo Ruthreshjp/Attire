@@ -1,39 +1,19 @@
-import React, { useState, useContext } from 'react';
-import { Link, useNavigate, useLocation } from 'react-router-dom';
-import { AuthContext } from '../context/AuthContext';
-import { useCart } from '../context/CartContext';
+import React from 'react';
+import { Link, useLocation } from 'react-router-dom';
 import { useWishlist } from '../context/WishlistContext';
 
 const ProductCard = ({ product }) => {
-    const [addedToCart, setAddedToCart] = useState(false);
-    const { user } = useContext(AuthContext);
-    const { addToCart } = useCart();
     const { toggleWishlist, isWishlisted } = useWishlist();
-    const navigate = useNavigate();
     const location = useLocation();
 
     const productId = product._id || product.id;
     const wishlisted = isWishlisted(productId);
 
-    const handleProtectedAction = (e, actionType) => {
+    const handleWishlistAction = (e) => {
         e.preventDefault();
         e.stopPropagation();
 
-        if (!user) {
-            navigate('/login', { state: { from: location.pathname } });
-            return;
-        }
-
-        if (actionType === 'wishlist') {
-            toggleWishlist(product);
-        } else if (actionType === 'cart') {
-            addToCart(product);
-            setAddedToCart(true);
-            setTimeout(() => setAddedToCart(false), 2000);
-        } else if (actionType === 'buy') {
-            addToCart(product);
-            navigate('/cart');
-        }
+        toggleWishlist(product);
     };
 
     // Use images array if available, otherwise fallback
@@ -47,11 +27,10 @@ const ProductCard = ({ product }) => {
         ? Math.round(((product.originalPrice - product.price) / product.originalPrice) * 100)
         : product.discount;
 
-    const isHomePage = location.pathname === '/';
-    const showAdvancedInfo = !isHomePage || product.isSpecialOffer;
-
     // Check if product is "New" (listed in the last 7 days)
     const isActuallyNew = product.isNewArrival || (product.createdAt && (new Date() - new Date(product.createdAt)) < 7 * 24 * 60 * 60 * 1000);
+
+    const isHomePage = location.pathname === '/';
 
 
     return (
@@ -66,16 +45,14 @@ const ProductCard = ({ product }) => {
                 </Link>
                 {isActuallyNew && <span className="product-badge new">New Arrival</span>}
 
-                {showAdvancedInfo && (
-                    <button
-                        className={`wishlist-btn ${wishlisted ? 'active' : ''}`}
-                        onClick={(e) => handleProtectedAction(e, 'wishlist')}
-                    >
-                        <svg width="20" height="20" viewBox="0 0 24 24" fill={wishlisted ? "currentColor" : "none"} stroke="currentColor" strokeWidth="2">
-                            <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
-                        </svg>
-                    </button>
-                )}
+                <button
+                    className={`wishlist-btn ${wishlisted ? 'active' : ''}`}
+                    onClick={handleWishlistAction}
+                >
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill={wishlisted ? "currentColor" : "none"} stroke="currentColor" strokeWidth="2">
+                        <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
+                    </svg>
+                </button>
             </div>
 
             <div className="product-info">
@@ -135,84 +112,9 @@ const ProductCard = ({ product }) => {
                 )}
 
 
-                {!isHomePage && showAdvancedInfo && (
-                    <div className="product-action-buttons">
-                        <button
-                            className="buy-now-btn-card"
-                            onClick={(e) => handleProtectedAction(e, 'buy')}
-                        >
-                            Buy Now
-                        </button>
-                        <button
-                            className={`add-to-cart-btn-card ${addedToCart ? 'added' : ''}`}
-                            onClick={(e) => handleProtectedAction(e, 'cart')}
-                        >
-                            {addedToCart ? '✓ Added' : 'Add to Cart'}
-                        </button>
-                    </div>
-                )}
             </div>
 
             <style>{`
-                .product-action-buttons {
-                    display: flex;
-                    flex-direction: column;
-                    gap: 8px;
-                    margin-top: 15px;
-                }
-                .product-stock-metrics {
-                    display: flex;
-                    flex-direction: column;
-                    gap: 4px;
-                    margin-top: 12px;
-                    padding: 10px;
-                    background: #f9f9f9;
-                    border-radius: 8px;
-                    border: 1px solid #eee;
-                }
-                .metric-item {
-                    display: flex;
-                    justify-content: space-between;
-                    font-size: 0.85rem;
-                }
-                .metric-label {
-                    color: #666;
-                }
-                .metric-value {
-                    font-weight: 600;
-                    color: #1a1a1a;
-                }
-                .buy-now-btn-card, .add-to-cart-btn-card {
-                    width: 100%;
-                    padding: 10px;
-                    border-radius: 6px;
-                    font-weight: 600;
-                    cursor: pointer;
-                    transition: all 0.2s;
-                    border: none;
-                }
-                .buy-now-btn-card {
-                    background: #1a1a1a;
-                    color: white;
-                }
-                .buy-now-btn-card:hover {
-                    background: #333;
-                }
-                .add-to-cart-btn-card {
-                    background: transparent;
-                    color: #1a1a1a;
-                    border: 1px solid #1a1a1a;
-                }
-                .add-to-cart-btn-card:hover {
-                    background: #f5f5f5;
-                }
-                .add-to-cart-btn-card.added {
-                    background: #1a1a1a !important;
-                    color: white !important;
-                    border-color: #1a1a1a !important;
-                    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
-                }
-
                 .product-badge.new {
                     top: 10px;
                     left: 10px;
@@ -227,6 +129,7 @@ const ProductCard = ({ product }) => {
                     background: white;
                     border: 1px solid #eee;
                     box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+                    z-index: 10;
                 }
                 .wishlist-btn.active {
                     color: #d32f2f;

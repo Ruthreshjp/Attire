@@ -1,9 +1,10 @@
 import React, { useState, useEffect, useContext } from 'react';
-import { useParams, useNavigate, Link } from 'react-router-dom';
+import { useParams, useNavigate } from 'react-router-dom';
 import Navbar from '../components/Navbar';
 import { AuthContext } from '../context/AuthContext';
 import { useCart } from '../context/CartContext';
 import { useWishlist } from '../context/WishlistContext';
+import TryOnModal from '../components/TryOnModal';
 
 
 const ProductDetail = () => {
@@ -18,15 +19,19 @@ const ProductDetail = () => {
     const [quantity, setQuantity] = useState(1);
     const [showReviewForm, setShowReviewForm] = useState(false);
     const [addedToCart, setAddedToCart] = useState(false);
+    const [isTryOnOpen, setIsTryOnOpen] = useState(false);
 
-    const { user } = useContext(AuthContext);
-    const { addToCart } = useCart();
+    // const { user } = useContext(AuthContext);
+    const { addToCart, cartItems } = useCart();
+    const [showPopup, setShowPopup] = useState(false);
+    const [popupMessage, setPopupMessage] = useState('');
     const { toggleWishlist, isWishlisted } = useWishlist();
 
     const productId = product?._id || product?.id;
     const wishlisted = isWishlisted(productId);
 
-    // Sample product data - will be fetched from API
+    // Sample product data - will be fetched from API (Not used, using state now)
+    /*
     const productData = {
         id: parseInt(id),
         name: 'Classic White Shirt',
@@ -88,6 +93,7 @@ const ProductDetail = () => {
             }
         ]
     };
+    */
 
     useEffect(() => {
         const fetchProduct = async () => {
@@ -131,9 +137,23 @@ const ProductDetail = () => {
 
     const handleAddToCart = () => {
         if (!selectedSize) {
-            alert('Please select a size');
+            setPopupMessage('Please select a size before adding to cart');
+            setShowPopup(true);
             return;
         }
+
+        const isAlreadyInCart = cartItems.some(item =>
+            (item.id === productId || item.id === product?._id) &&
+            item.size === selectedSize &&
+            item.color === selectedColor
+        );
+
+        if (isAlreadyInCart) {
+            setPopupMessage('This item is already in your cart!');
+            setShowPopup(true);
+            return;
+        }
+
         addToCart(product, selectedSize, selectedColor);
         setAddedToCart(true);
         setTimeout(() => setAddedToCart(false), 2000);
@@ -141,10 +161,20 @@ const ProductDetail = () => {
 
     const handleBuyNow = () => {
         if (!selectedSize) {
-            alert('Please select a size');
+            setPopupMessage('Please select a size before proceeding');
+            setShowPopup(true);
             return;
         }
-        addToCart(product, selectedSize, selectedColor);
+
+        const isAlreadyInCart = cartItems.some(item =>
+            (item.id === productId || item.id === product?._id) &&
+            item.size === selectedSize &&
+            item.color === selectedColor
+        );
+
+        if (!isAlreadyInCart) {
+            addToCart(product, selectedSize, selectedColor);
+        }
         navigate('/cart');
     };
 
@@ -345,6 +375,14 @@ const ProductDetail = () => {
                         </div>
 
                         {/* Action Buttons */}
+                        <button className="try-on-btn-large" onClick={() => setIsTryOnOpen(true)}>
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                <path d="M20.38 3.46L16 2a4 4 0 01-8 0L3.62 3.46a2 2 0 00-1.34 2.23l.58 3.47a1 1 0 00.99.84H6v10c0 1.1.9 2 2 2h8a2 2 0 002-2V10h2.15a1 1 0 00.99-.84l.58-3.47a2 2 0 00-1.34-2.23z" />
+                                <path d="M9 10v10M15 10v10" />
+                            </svg>
+                            Virtual Try-On
+                        </button>
+
                         <div className="action-buttons">
                             <button className={`add-to-cart-btn ${addedToCart ? 'added' : ''}`} onClick={handleAddToCart}>
                                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -485,7 +523,151 @@ const ProductDetail = () => {
                     </div>
                 </div>
             </div>
-        </div >
+
+            <TryOnModal
+                isOpen={isTryOnOpen}
+                onClose={() => setIsTryOnOpen(false)}
+                product={product}
+                selectedColor={selectedColor}
+            />
+
+            {showPopup && (
+                <div className="popup-overlay" onClick={() => setShowPopup(false)}>
+                    <div className="popup-content" onClick={(e) => e.stopPropagation()}>
+                        <div className="popup-icon">
+                            <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                <circle cx="12" cy="12" r="10" />
+                                <line x1="12" y1="8" x2="12" y2="12" />
+                                <line x1="12" y1="16" x2="12.01" y2="16" />
+                            </svg>
+                        </div>
+                        <h3>Notice</h3>
+                        <p>{popupMessage}</p>
+                        <button className="popup-close-btn" onClick={() => setShowPopup(false)}>
+                            Dismiss
+                        </button>
+                    </div>
+                </div>
+            )}
+
+            <style>{`
+                .popup-overlay {
+                    position: fixed;
+                    top: 0;
+                    left: 0;
+                    width: 100%;
+                    height: 100%;
+                    background: rgba(0, 0, 0, 0.7);
+                    backdrop-filter: blur(8px);
+                    display: flex;
+                    justify-content: center;
+                    align-items: center;
+                    z-index: 9999;
+                    animation: fadeIn 0.3s ease-out;
+                }
+
+                .popup-content {
+                    background: #1a1a1a;
+                    color: white;
+                    padding: 2.5rem;
+                    border-radius: 20px;
+                    text-align: center;
+                    max-width: 400px;
+                    width: 90%;
+                    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+                    border: 1px solid rgba(255, 255, 255, 0.1);
+                    transform: translateY(0);
+                    animation: slideUp 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+                }
+
+                .popup-icon {
+                    color: #FFC107;
+                    margin-bottom: 1.5rem;
+                    display: flex;
+                    justify-content: center;
+                }
+
+                .popup-content h3 {
+                    font-size: 1.5rem;
+                    margin-bottom: 1rem;
+                    color: #FFC107;
+                }
+
+                .popup-content p {
+                    font-size: 1.1rem;
+                    margin-bottom: 2rem;
+                    line-height: 1.6;
+                    opacity: 0.9;
+                }
+
+                .popup-close-btn {
+                    background: #FFC107;
+                    color: black;
+                    border: none;
+                    padding: 0.8rem 2.5rem;
+                    border-radius: 50px;
+                    font-weight: 700;
+                    font-size: 1rem;
+                    cursor: pointer;
+                    transition: all 0.3s ease;
+                    text-transform: uppercase;
+                    letter-spacing: 1px;
+                }
+
+                .popup-close-btn:hover {
+                    background: #ffdb70;
+                    transform: scale(1.05);
+                    box-shadow: 0 5px 15px rgba(255, 193, 7, 0.4);
+                }
+
+                @keyframes fadeIn {
+                    from { opacity: 0; }
+                    to { opacity: 1; }
+                }
+
+                @keyframes slideUp {
+                    from { opacity: 0; transform: translateY(20px); }
+                    to { opacity: 1; transform: translateY(0); }
+                }
+
+                .try-on-btn-large {
+                    width: 100%;
+                    padding: 1rem;
+                    margin-bottom: 20px;
+                    background: #1a1a1a;
+                    color: #FFC107;
+                    border: 1px solid #FFC107;
+                    border-radius: 12px;
+                    font-weight: 700;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    gap: 12px;
+                    font-size: 1.1rem;
+                    cursor: pointer;
+                    transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+                    box-shadow: 0 10px 20px rgba(0,0,0,0.1);
+                    text-transform: uppercase;
+                    letter-spacing: 1px;
+                }
+
+                .try-on-btn-large:hover {
+                    background: #c5a059;
+                    color: white;
+                    border-color: #c5a059;
+                    transform: translateY(-3px);
+                    box-shadow: 0 15px 30px rgba(197, 160, 89, 0.4);
+                }
+
+                .try-on-btn-large svg {
+                    transition: transform 0.3s;
+                }
+
+                .try-on-btn-large:hover svg {
+                    transform: rotate(15deg);
+                }
+            `}</style>
+        </div>
     );
 };
 

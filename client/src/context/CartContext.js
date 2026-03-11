@@ -5,7 +5,7 @@ import axios from 'axios';
 export const CartContext = createContext();
 
 export const CartProvider = ({ children }) => {
-    const { user, isAuthenticated } = useContext(AuthContext);
+    const { isAuthenticated } = useContext(AuthContext);
     const [cartItems, setCartItems] = useState([]);
     const [loading, setLoading] = useState(true);
 
@@ -41,6 +41,9 @@ export const CartProvider = ({ children }) => {
                     }
                 } catch (err) {
                     console.error('Error fetching cart:', err);
+                    if (err.response && err.response.status === 401) {
+                        setCartItems([]);
+                    }
                 }
             } else {
                 // Not authenticated - loaded from local storage (kept as guest cart)
@@ -125,6 +128,32 @@ export const CartProvider = ({ children }) => {
                 }
             } catch (err) {
                 console.error('Error adding to server cart:', err);
+                if (err.response && err.response.status === 401) {
+                    // Fallback to guest logic if unauthorized
+                    const productId = product._id || product.id;
+                    setCartItems(prev => {
+                        const cartKey = `${productId}-${product.sizes?.[0] || ''}-${product.colors?.[0]?.name || ''}`;
+                        const existing = prev.find(item => item.id === productId);
+                        if (existing) return prev;
+
+                        const displayImage = product.images && product.images[0]
+                            ? (typeof product.images[0] === 'string' ? product.images[0] : product.images[0].url)
+                            : product.image;
+
+                        return [...prev, {
+                            cartKey,
+                            id: productId,
+                            name: product.name,
+                            price: product.price,
+                            originalPrice: product.originalPrice,
+                            image: displayImage,
+                            size: product.sizes?.[0] || '',
+                            color: product.colors?.[0]?.name || '',
+                            quantity: 1,
+                            category: product.category
+                        }];
+                    });
+                }
             }
         } else {
             // Local state for guests

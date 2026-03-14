@@ -79,6 +79,17 @@ const orderSchema = new mongoose.Schema({
         orderId: String,
         signature: String
     },
+    refundDetails: {
+        accountName: String,
+        accountNumber: String,
+        ifscCode: String,
+        refundStatus: {
+            type: String,
+            enum: ['pending', 'processed', 'none'],
+            default: 'none'
+        },
+        refundAmount: Number
+    },
     expectedDelivery: Date
 }, {
     timestamps: true

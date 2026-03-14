@@ -24,11 +24,18 @@ const AdminOrders = () => {
         fetchOrders();
     }, []);
 
-    const filters = ['All', 'Paid', 'Unpaid', 'Shipped'];
+    const filters = ['All', 'Confirmed', 'Cancelled'];
 
     const filteredOrders = activeFilter === 'All'
         ? orders
-        : orders.filter(order => order.status === activeFilter);
+        : orders.filter(order => {
+            if (activeFilter === 'Confirmed') {
+                return order.orderStatus !== 'cancelled';
+            } else if (activeFilter === 'Cancelled') {
+                return order.orderStatus === 'cancelled';
+            }
+            return true;
+        });
 
     return (
         <div className="admin-layout">
@@ -50,7 +57,11 @@ const AdminOrders = () => {
                         >
                             {filter}
                             <span className="count">
-                                {filter === 'All' ? orders.length : orders.filter(o => o.status === filter).length}
+                                {filter === 'All' ? orders.length : orders.filter(o => {
+                                    if (filter === 'Confirmed') return o.orderStatus !== 'cancelled';
+                                    if (filter === 'Cancelled') return o.orderStatus === 'cancelled';
+                                    return true;
+                                }).length}
                             </span>
                         </button>
                     ))}

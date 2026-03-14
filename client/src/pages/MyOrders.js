@@ -9,6 +9,35 @@ const MyOrders = () => {
     const [orders, setOrders] = useState([]);
     const [loading, setLoading] = useState(true);
     const [selectedOrder, setSelectedOrder] = useState(null);
+    const [cancelForm, setCancelForm] = useState({ accountName: '', accountNumber: '', ifscCode: '' });
+    const [isCancelling, setIsCancelling] = useState(false);
+    
+    // Check if order is within 2 days
+    const canCancel = (date) => {
+        const diffDays = Math.ceil(Math.abs(new Date() - new Date(date)) / (1000 * 60 * 60 * 24));
+        return diffDays <= 2;
+    };
+
+    const handleCancelOrder = async (orderId) => {
+        if (!cancelForm.accountName || !cancelForm.accountNumber || !cancelForm.ifscCode) {
+            alert('Please fill all bank details for refund');
+            return;
+        }
+        try {
+            const res = await axios.put(`http://localhost:5000/api/orders/${orderId}/cancel`, cancelForm, {
+                headers: { 'x-auth-token': localStorage.getItem('token') }
+            });
+            if (res.data.success) {
+                alert(res.data.message);
+                // updating local orders
+                setOrders(orders.map(o => o._id === orderId ? res.data.order : o));
+                setSelectedOrder(res.data.order);
+                setIsCancelling(false);
+            }
+        } catch(err) {
+            alert(err.response?.data?.message || 'Error cancelling order');
+        }
+    };
 
     useEffect(() => {
         const fetchOrders = async () => {
@@ -103,6 +132,73 @@ const MyOrders = () => {
                                         ))}
                                     </div>
                                 </div>
+                                {selectedOrder.orderStatus !== 'cancelled' && canCancel(selectedOrder.createdAt) && (
+                                    <div className="cancel-order-section mt-4 pt-4 border-t border-gray-100">
+                                        {!isCancelling ? (
+                                            <button 
+                                                className="cancel-btn"
+                                                onClick={() => setIsCancelling(true)}
+                                            >
+                                                Cancel Order
+                                            </button>
+                                        ) : (
+                                            <div className="cancel-form">
+                                                <h4 className="text-red-500 font-bold mb-2">Cancel Order</h4>
+                                                <p className="cancel-caution">
+                                                    <strong>Caution:</strong> Rs. 50 processing fee will be deducted from your refund amount.
+                                                </p>
+                                                <p className="mb-3 text-sm">Please provide your bank details for refund processing:</p>
+                                                
+                                                <div className="form-group mb-2">
+                                                    <input 
+                                                        type="text" 
+                                                        placeholder="Account Holder Name" 
+                                                        className="cancel-input"
+                                                        value={cancelForm.accountName}
+                                                        onChange={(e)=>setCancelForm({...cancelForm, accountName: e.target.value})}
+                                                    />
+                                                </div>
+                                                <div className="form-group mb-2">
+                                                    <input 
+                                                        type="text" 
+                                                        placeholder="Account Number" 
+                                                        className="cancel-input"
+                                                        value={cancelForm.accountNumber}
+                                                        onChange={(e)=>setCancelForm({...cancelForm, accountNumber: e.target.value})}
+                                                    />
+                                                </div>
+                                                <div className="form-group mb-3">
+                                                    <input 
+                                                        type="text" 
+                                                        placeholder="IFSC Code" 
+                                                        className="cancel-input"
+                                                        value={cancelForm.ifscCode}
+                                                        onChange={(e)=>setCancelForm({...cancelForm, ifscCode: e.target.value})}
+                                                    />
+                                                </div>
+                                                <div className="cancel-actions">
+                                                    <button className="confirm-cancel-btn" onClick={() => handleCancelOrder(selectedOrder._id)}>
+                                                        Confirm Cancel Order
+                                                    </button>
+                                                    <button className="abort-cancel-btn" onClick={() => setIsCancelling(false)}>
+                                                        Abort
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        )}
+                                    </div>
+                                )}
+                                {selectedOrder.orderStatus === 'cancelled' && (
+                                    <div className="mt-4 pt-4 border-t border-gray-100">
+                                        <h4 className="text-red-500 font-bold">Order Cancelled</h4>
+                                        {selectedOrder.refundDetails && (
+                                            <div className="mt-2 text-sm">
+                                                <p>Refund Status: <strong style={{textTransform:'uppercase'}}>{selectedOrder.refundDetails.refundStatus}</strong></p>
+                                                <p>Refund Amount: <strong>₹{selectedOrder.refundDetails.refundAmount}</strong> (After Rs.50 deduction)</p>
+                                            </div>
+                                        )}
+                                    </div>
+                                )}
                             </div>
                         </div>
                     </div>

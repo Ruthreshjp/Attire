@@ -297,6 +297,109 @@ const AdminDashboard = () => {
         </div>
     );
 
+    const handleGiveRefund = async (orderId) => {
+        try {
+            const res = await axios.put(`http://localhost:5000/api/admin/orders/${orderId}/refund`, {}, {
+                headers: { 'x-auth-token': localStorage.getItem('token') }
+            });
+            if (res.data.success) {
+                alert('Refund processed successfully');
+                const newOrders = rawData.orders.map(o => o._id === orderId ? res.data.order : o);
+                setRawData({ ...rawData, orders: newOrders });
+            }
+        } catch(err) {
+            alert(err.response?.data?.message || 'Error processing refund');
+        }
+    };
+
+    const renderRefundsView = () => {
+        const cancelledOrders = periodOrders.filter(o => o.orderStatus === 'cancelled' && o.refundDetails);
+        return (
+            <div className="tab-view-content">
+                <h2 className="view-title">Refund Management ({timeframe})</h2>
+                <div className="table-responsive">
+                    <table className="admin-table">
+                        <thead>
+                            <tr>
+                                <th>Order ID</th>
+                                <th>Account Name</th>
+                                <th>Acc. Number</th>
+                                <th>IFSC Code</th>
+                                <th>Refund Amount</th>
+                                <th>Status</th>
+                                <th>Action</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {cancelledOrders.map(order => (
+                                <tr key={order._id}>
+                                    <td>{order.orderNumber}</td>
+                                    <td>{order.refundDetails.accountName}</td>
+                                    <td>{order.refundDetails.accountNumber}</td>
+                                    <td>{order.refundDetails.ifscCode}</td>
+                                    <td><strong className="text-red-500">₹{order.refundDetails.refundAmount}</strong></td>
+                                    <td><span className={`status-badge ${order.refundDetails.refundStatus === 'processed' ? 'delivered' : 'pending'}`}>{order.refundDetails.refundStatus}</span></td>
+                                    <td>
+                                        {order.refundDetails.refundStatus !== 'processed' ? (
+                                            <button 
+                                                className="view-order-btn" 
+                                                style={{background:'#d97706'}}
+                                                onClick={() => handleGiveRefund(order._id)}
+                                            >
+                                                Give Refund
+                                            </button>
+                                        ) : (
+                                            <span style={{color:'green', fontWeight:'bold'}}>Transferred</span>
+                                        )}
+                                    </td>
+                                </tr>
+                            ))}
+                            {cancelledOrders.length === 0 && (
+                                <tr>
+                                    <td colSpan="7" style={{textAlign:'center', padding:'20px'}}>No cancellation refund requests in this period.</td>
+                                </tr>
+                            )}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        );
+    };
+
+    const renderTransactionsView = () => {
+        const totalRefunds = periodOrders.filter(o => o.orderStatus === 'cancelled' && o.refundDetails).reduce((acc, curr) => acc + (curr.refundDetails.refundAmount || 0), 0);
+        const balancedAmount = totalSales - totalRefunds;
+        
+        return (
+            <div className="tab-view-content">
+                <h2 className="view-title">Transaction Analysis ({timeframe})</h2>
+                <div className="stats-grid" style={{gridTemplateColumns:'repeat(3, 1fr)', marginBottom:'0'}}>
+                    <div className="stat-card">
+                        <div className="stat-info">
+                            <h3 style={{color:'#16a34a'}}>Gross Orders Sales</h3>
+                            <p className="stat-value">₹{totalSales.toLocaleString()}</p>
+                        </div>
+                    </div>
+                    <div className="stat-card">
+                        <div className="stat-info">
+                            <h3 style={{color:'#dc2626'}}>Total Refunds Processed</h3>
+                            <p className="stat-value">₹{totalRefunds.toLocaleString()}</p>
+                            <p className="text-xs text-gray-500">After Rs. 50 reduction</p>
+                        </div>
+                    </div>
+                    <div className="stat-card" style={{borderColor: balancedAmount >= 0 ? '#16a34a' : '#dc2626'}}>
+                        <div className="stat-info">
+                            <h3 style={{color:'#4338ca'}}>Remaining Balance Amount</h3>
+                            <p className="stat-value" style={{color: balancedAmount >= 0 ? '#16a34a' : '#dc2626'}}>
+                                ₹{balancedAmount.toLocaleString()}
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        );
+    };
+
     if (loading) return <div className="admin-layout"><AdminSidebar /><main className="admin-main">Loading Data...</main></div>;
 
     return (
@@ -356,6 +459,24 @@ const AdminDashboard = () => {
                             <p className="stat-meta">New joined ({timeframe})</p>
                         </div>
                     </div>
+
+                    <div className={`stat-card ${activeTab === 'refunds' ? 'active-stat' : ''}`} onClick={() => { setActiveTab('refunds'); setShowGraph(false); }}>
+                        <div className="stat-icon refunds" style={{background:'#fef3c7', color:'#d97706'}}>💳</div>
+                        <div className="stat-info">
+                            <h3>Refunds</h3>
+                            <p className="stat-value">{periodOrders.filter(o => o.orderStatus === 'cancelled' && o.refundDetails).length}</p>
+                            <p className="stat-meta">Pending or processed</p>
+                        </div>
+                    </div>
+
+                    <div className={`stat-card ${activeTab === 'transactions' ? 'active-stat' : ''}`} onClick={() => { setActiveTab('transactions'); setShowGraph(false); }}>
+                        <div className="stat-icon transactions" style={{background:'#e0e7ff', color:'#4338ca'}}>📊</div>
+                        <div className="stat-info">
+                            <h3>Transactions</h3>
+                            <p className="stat-value">View</p>
+                            <p className="stat-meta">Balance & Flow</p>
+                        </div>
+                    </div>
                 </div>
 
                 <div className="dashboard-content">
@@ -363,6 +484,8 @@ const AdminDashboard = () => {
                     {activeTab === 'orders' && renderOrdersView()}
                     {activeTab === 'products' && renderProductsView()}
                     {activeTab === 'users' && renderUsersView()}
+                    {activeTab === 'refunds' && renderRefundsView()}
+                    {activeTab === 'transactions' && renderTransactionsView()}
                 </div>
 
             </main>

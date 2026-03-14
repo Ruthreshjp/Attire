@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import AdminSidebar from '../../components/AdminSidebar';
 import './AdminDashboard.css';
+import axios from 'axios';
 
 const AdminDashboard = () => {
     const [stats, setStats] = useState({
@@ -10,22 +11,25 @@ const AdminDashboard = () => {
         totalUsers: 0
     });
 
-    useEffect(() => {
-        // In a real app, fetch these from API
-        // For now, mock data
-        setStats({
-            totalSales: 125499,
-            totalOrders: 48,
-            totalProducts: 12,
-            totalUsers: 156
-        });
-    }, []);
+    const [recentOrders, setRecentOrders] = useState([]);
 
-    const recentOrders = [
-        { id: '#ORD-7721', user: 'John Doe', amount: 15999, status: 'Pending', date: 'Feb 12, 2024' },
-        { id: '#ORD-7720', user: 'Sarah Smith', amount: 5599, status: 'Shipped', date: 'Feb 11, 2024' },
-        { id: '#ORD-7719', user: 'Michael Brown', amount: 12999, status: 'Delivered', date: 'Feb 10, 2024' },
-    ];
+    useEffect(() => {
+        const fetchDashboardData = async () => {
+            try {
+                const res = await axios.get('http://localhost:5000/api/admin/dashboard', {
+                    headers: { 'x-auth-token': localStorage.getItem('token') }
+                });
+                if (res.data.success) {
+                    setStats(res.data.stats);
+                    setRecentOrders(res.data.recentOrders);
+                }
+            } catch (err) {
+                console.error('Error fetching dashboard data:', err);
+            }
+        };
+
+        fetchDashboardData();
+    }, []);
 
     return (
         <div className="admin-layout">

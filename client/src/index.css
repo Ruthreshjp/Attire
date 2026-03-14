@@ -365,7 +365,7 @@ img {
   top: 0;
   left: 0;
   right: 0;
-  height: 80px;
+  height: 100px;
   background: rgba(10, 10, 10, 0.95);
   /* Dark charcoal background */
   backdrop-filter: blur(15px);

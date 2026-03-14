@@ -1,17 +1,28 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import AdminSidebar from '../../components/AdminSidebar';
 import './AdminDashboard.css';
+import axios from 'axios';
 
 const AdminOrders = () => {
     const [activeFilter, setActiveFilter] = useState('All');
+    const [orders, setOrders] = useState([]);
 
-    const [orders, setOrders] = useState([
-        { id: '#ORD-7721', user: 'John Doe', amount: 12999, status: 'Unpaid', date: 'Feb 13, 2024', city: 'Mumbai' },
-        { id: '#ORD-7720', user: 'Sarah Smith', amount: 5599, status: 'Paid', date: 'Feb 12, 2024', city: 'Delhi' },
-        { id: '#ORD-7719', user: 'Michael Brown', amount: 15999, status: 'Shipped', date: 'Feb 10, 2024', city: 'Bangalore' },
-        { id: '#ORD-7718', user: 'Emma Wilson', amount: 8999, status: 'Paid', date: 'Feb 09, 2024', city: 'Chennai' },
-        { id: '#ORD-7717', user: 'David Miller', amount: 4299, status: 'Shipped', date: 'Feb 08, 2024', city: 'Pune' },
-    ]);
+    useEffect(() => {
+        const fetchOrders = async () => {
+            try {
+                const res = await axios.get('http://localhost:5000/api/admin/orders', {
+                    headers: { 'x-auth-token': localStorage.getItem('token') }
+                });
+                if (res.data.success) {
+                    setOrders(res.data.orders);
+                }
+            } catch (err) {
+                console.error('Error fetching admin orders:', err);
+            }
+        };
+
+        fetchOrders();
+    }, []);
 
     const filters = ['All', 'Paid', 'Unpaid', 'Shipped'];
 

@@ -168,7 +168,10 @@ const Cart = () => {
 
         } catch (err) {
             console.error('Checkout error:', err);
-            alert('Failed to initiate payment. Please try again.');
+            const errMsg = err.response && err.response.data && err.response.data.message 
+                ? err.response.data.message 
+                : err.message;
+            alert('Failed to initiate payment. Please try again. Error: ' + errMsg);
         }
     };
 

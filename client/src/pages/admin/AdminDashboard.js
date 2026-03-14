@@ -86,11 +86,17 @@ const AdminDashboard = () => {
         periodOrders.sort((a,b) => new Date(a.createdAt) - new Date(b.createdAt)).forEach(o => {
             const key = formatKey(o.createdAt);
             if (!dataMap[key]) {
-                dataMap[key] = { name: key, sales: 0, orders: 0 };
+                dataMap[key] = { name: key, sales: 0, orders: 0, refunds: 0, balance: 0 };
             }
             dataMap[key].orders += 1;
             if (o.paymentStatus === 'paid') {
                 dataMap[key].sales += o.total;
+                dataMap[key].balance += o.total;
+            }
+            if (o.orderStatus === 'cancelled' && o.refundDetails) {
+                const refAmount = o.refundDetails.refundAmount || 0;
+                dataMap[key].refunds += refAmount;
+                dataMap[key].balance -= refAmount;
             }
         });
 
@@ -134,6 +140,17 @@ const AdminDashboard = () => {
                             <Tooltip formatter={(value) => `₹${value.toLocaleString()}`} />
                             <Legend />
                             <Line type="monotone" dataKey="sales" stroke="#D4AF37" activeDot={{ r: 8 }} name="Sales Content" />
+                        </LineChart>
+                    ) : activeTab === 'transactions' ? (
+                        <LineChart data={graphData}>
+                            <CartesianGrid strokeDasharray="3 3" />
+                            <XAxis dataKey="name" />
+                            <YAxis />
+                            <Tooltip formatter={(value) => `₹${value.toLocaleString()}`} />
+                            <Legend />
+                            <Line type="monotone" dataKey="sales" stroke="#16a34a" activeDot={{ r: 8 }} name="Gross Sales" />
+                            <Line type="monotone" dataKey="refunds" stroke="#dc2626" activeDot={{ r: 8 }} name="Refunds" />
+                            <Line type="monotone" dataKey="balance" stroke="#4338ca" activeDot={{ r: 8 }} name="Net Balance" />
                         </LineChart>
                     ) : (
                         <BarChart data={graphData}>
@@ -373,6 +390,11 @@ const AdminDashboard = () => {
         return (
             <div className="tab-view-content">
                 <h2 className="view-title">Transaction Analysis ({timeframe})</h2>
+                <button className="view-stats-btn" onClick={() => setShowGraph(!showGraph)}>
+                    {showGraph ? 'Hide Statistics' : 'View Statistics Graph'}
+                </button>
+                {renderGraph()}
+                
                 <div className="stats-grid" style={{gridTemplateColumns:'repeat(3, 1fr)', marginBottom:'0'}}>
                     <div className="stat-card">
                         <div className="stat-info">

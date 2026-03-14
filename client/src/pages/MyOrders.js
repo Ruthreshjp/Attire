@@ -11,6 +11,7 @@ const MyOrders = () => {
     const [selectedOrder, setSelectedOrder] = useState(null);
     const [cancelForm, setCancelForm] = useState({ accountName: '', accountNumber: '', ifscCode: '' });
     const [isCancelling, setIsCancelling] = useState(false);
+    const [activeFilter, setActiveFilter] = useState('All');
     
     // Check if order is within 2 days
     const canCancel = (date) => {
@@ -61,6 +62,14 @@ const MyOrders = () => {
 
         fetchOrders();
     }, [isAuthenticated]);
+
+    const filteredOrders = activeFilter === 'All' 
+        ? orders 
+        : orders.filter(o => {
+            if (activeFilter === 'Cancelled') return o.orderStatus === 'cancelled';
+            if (activeFilter === 'Confirmed') return o.orderStatus !== 'cancelled';
+            return true;
+        });
 
     if (!user) return <div className="loading-container"><Navbar /><div className="loading">Please login to view your orders.</div></div>;
     if (loading) return <div className="loading-container"><Navbar /><div className="loading">Loading orders...</div></div>;
@@ -223,13 +232,24 @@ const MyOrders = () => {
 
                 <div className="profile-content">
                     <div className="profile-card">
+                        <div className="user-orders-filters mb-4 flex gap-3">
+                            {['All', 'Confirmed', 'Cancelled'].map(filter => (
+                                <button 
+                                    key={filter}
+                                    className={`order-filter-btn ${activeFilter === filter ? 'active' : ''}`}
+                                    onClick={() => setActiveFilter(filter)}
+                                >
+                                    {filter}
+                                </button>
+                            ))}
+                        </div>
                         <div className="orders-list">
-                            {orders.length === 0 ? (
+                            {filteredOrders.length === 0 ? (
                                 <div className="no-orders-msg">
-                                    <p>You haven't placed any orders yet.</p>
+                                    <p>No orders found for this category.</p>
                                 </div>
                             ) : (
-                                orders.map(order => (
+                                filteredOrders.map(order => (
                                     <div key={order._id} className="order-item-card">
                                         <div className="order-main-info">
                                             <div className="id-date">
@@ -270,6 +290,31 @@ const MyOrders = () => {
             </div>
 
             <style>{`
+                .user-orders-filters {
+                    display: flex;
+                    gap: 15px;
+                    margin-bottom: 25px;
+                    border-bottom: 1px solid #eee;
+                    padding-bottom: 15px;
+                }
+                .order-filter-btn {
+                    padding: 8px 18px;
+                    border: 1px solid #ddd;
+                    background: white;
+                    border-radius: 20px;
+                    cursor: pointer;
+                    font-weight: 600;
+                    color: #555;
+                    transition: all 0.2s;
+                }
+                .order-filter-btn.active {
+                    background: #1a1a1a;
+                    color: white;
+                    border-color: #1a1a1a;
+                }
+                .order-filter-btn:hover:not(.active) {
+                    background: #f5f5f5;
+                }
                 .orders-list {
                     display: flex;
                     flex-direction: column;

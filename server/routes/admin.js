@@ -35,45 +35,22 @@ router.post('/carousel', async (req, res) => {
 });
 
 // @route   GET /api/admin/dashboard
-// @desc    Get dashboard statistics
+// @desc    Get dashboard statistics & full data for frontend aggregation
 // @access  Private/Admin
 router.get('/dashboard', auth, adminAuth, async (req, res) => {
     try {
-        const totalProducts = await Product.countDocuments();
-        const totalUsers = await User.countDocuments({ role: 0 }); // Assuming role 0 is regular user
+        const products = await Product.find().select('category title');
+        const users = await User.find({ role: 0 }).select('name email createdAt lastLogin');
         
-        // Fetch orders to calculate total sales and orders
-        const orders = await Order.find();
-        
-        // Calculate total sales
-        const totalSales = orders
-            .filter(order => order.paymentStatus === 'paid')
-            .reduce((total, order) => total + order.total, 0);
-
-        // Fetch recent 5 orders
-        const recentOrders = await Order.find()
-            .populate('user', 'name')
-            .sort({ createdAt: -1 })
-            .limit(5);
-
-        // Format recent orders for frontend
-        const formattedRecentOrders = recentOrders.map(order => ({
-            id: order.orderNumber,
-            user: order.user ? order.user.name : order.shippingAddress.name,
-            amount: order.total,
-            status: order.orderStatus,
-            date: new Date(order.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
-        }));
+        const orders = await Order.find()
+            .populate('user', 'name email')
+            .populate('items.product', 'category title');
 
         res.json({
             success: true,
-            stats: {
-                totalSales,
-                totalOrders: orders.length,
-                totalProducts,
-                totalUsers
-            },
-            recentOrders: formattedRecentOrders
+            products,
+            users,
+            orders
         });
     } catch (err) {
         console.error(err);

@@ -22,7 +22,8 @@ router.post('/register', async (req, res) => {
             name,
             email,
             password,
-            role: 0 // Default to customer
+            role: 0, // Default to customer
+            lastLogin: Date.now()
         });
 
         // Hash password
@@ -81,6 +82,10 @@ router.post('/login', async (req, res) => {
         if (!isMatch) {
             return res.status(400).json({ success: false, message: 'Invalid Credentials' });
         }
+        
+        // Update last login
+        user.lastLogin = Date.now();
+        await user.save();
 
         // Create token
         const payload = {

@@ -1,128 +1,58 @@
 import React, { useState, useEffect, useContext } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, Link } from 'react-router-dom';
 import Navbar from '../components/Navbar';
 import { AuthContext } from '../context/AuthContext';
 import { useCart } from '../context/CartContext';
 import { useWishlist } from '../context/WishlistContext';
 import TryOnModal from '../components/TryOnModal';
-
+import useScrollAnimation from '../utils/useScrollAnimation';
 
 const ProductDetail = () => {
     const { id } = useParams();
     const navigate = useNavigate();
+    const { user } = useContext(AuthContext);
+    const { addToCart, cartItems } = useCart();
+    const { toggleWishlist, isWishlisted } = useWishlist();
+    useScrollAnimation();
+
     const [product, setProduct] = useState(null);
     const [loading, setLoading] = useState(true);
     const [selectedImage, setSelectedImage] = useState(0);
-    const [currentImageSet, setCurrentImageSet] = useState([]);
     const [selectedSize, setSelectedSize] = useState('');
     const [selectedColor, setSelectedColor] = useState('');
     const [quantity, setQuantity] = useState(1);
-    const [showReviewForm, setShowReviewForm] = useState(false);
     const [addedToCart, setAddedToCart] = useState(false);
     const [isTryOnOpen, setIsTryOnOpen] = useState(false);
-
-    // const { user } = useContext(AuthContext);
-    const { addToCart, cartItems } = useCart();
-    const [showPopup, setShowPopup] = useState(false);
-    const [popupMessage, setPopupMessage] = useState('');
-    const { toggleWishlist, isWishlisted } = useWishlist();
-
-    const productId = product?._id || product?.id;
-    const wishlisted = isWishlisted(productId);
-
-    // Sample product data - will be fetched from API (Not used, using state now)
-    /*
-    const productData = {
-        id: parseInt(id),
-        name: 'Classic White Shirt',
-        category: 'Men\'s Shirts',
-        price: 3999,
-        originalPrice: 6399,
-        discount: 38,
-        images: [
-            'https://images.unsplash.com/photo-1602810318383-e386cc2a3ccf?w=800&q=80',
-            'https://images.unsplash.com/photo-1596755094514-f87e34085b2c?w=800&q=80',
-            'https://images.unsplash.com/photo-1603252109303-2751441dd157?w=800&q=80',
-            'https://images.unsplash.com/photo-1620012253295-c15cc3e65df4?w=800&q=80'
-        ],
-        rating: 4.5,
-        totalReviews: 234,
-        description: 'Premium quality cotton shirt with a classic fit. Perfect for both casual and formal occasions. Made from 100% Egyptian cotton with a soft, breathable fabric that keeps you comfortable all day long.',
-        features: [
-            '100% Premium Egyptian Cotton',
-            'Classic Fit Design',
-            'Machine Washable',
-            'Wrinkle Resistant',
-            'Breathable Fabric',
-            'Button-Down Collar'
-        ],
-        colors: [
-            { name: 'White', hex: '#FFFFFF' },
-            { name: 'Black', hex: '#000000' },
-            { name: 'Navy Blue', hex: '#000080' },
-            { name: 'Light Blue', hex: '#4A90E2' }
-        ],
-        sizes: ['S', 'M', 'L', 'XL', 'XXL'],
-        stock: 45,
-        sold: 1250,
-        sku: 'ATR-SH-001',
-        reviews: [
-            {
-                id: 1,
-                user: 'John Doe',
-                rating: 5,
-                date: '2026-02-10',
-                comment: 'Excellent quality! The fabric is soft and the fit is perfect. Highly recommended!',
-                verified: true
-            },
-            {
-                id: 2,
-                user: 'Mike Smith',
-                rating: 4,
-                date: '2026-02-08',
-                comment: 'Great shirt, but runs slightly large. Consider ordering one size down.',
-                verified: true
-            },
-            {
-                id: 3,
-                user: 'David Wilson',
-                rating: 5,
-                date: '2026-02-05',
-                comment: 'Best shirt I\'ve bought online. Will definitely order more colors!',
-                verified: true
-            }
-        ]
-    };
-    */
+    const [error, setError] = useState(null);
 
     useEffect(() => {
+        window.scrollTo(0, 0);
         const fetchProduct = async () => {
             try {
                 const response = await fetch(`http://localhost:5000/api/products/${id}`);
                 const data = await response.json();
                 if (data.success) {
                     setProduct(data.product);
+                    if (data.product.sizes?.length > 0) setSelectedSize(data.product.sizes[0]);
+                    if (data.product.colors?.length > 0) setSelectedColor(data.product.colors[0].name);
 
                     // Track Recently Viewed
-                    const viewedIds = JSON.parse(localStorage.getItem('recentlyViewed') || '[]');
+                    let viewedIds = [];
+                    try {
+                        const storedViewed = localStorage.getItem('recentlyViewed');
+                        if (storedViewed && storedViewed !== 'undefined') {
+                            viewedIds = JSON.parse(storedViewed);
+                        }
+                    } catch (e) {
+                        console.error("Error parsing recentlyViewed:", e);
+                    }
                     const updatedViewed = [data.product._id, ...viewedIds.filter(vId => vId !== data.product._id)].slice(0, 10);
                     localStorage.setItem('recentlyViewed', JSON.stringify(updatedViewed));
-
-                    if (data.product.colors && data.product.colors.length > 0) {
-                        const firstColor = data.product.colors[0];
-                        setSelectedColor(firstColor.name || '');
-                        // If color has specific images, use them
-                        if (firstColor.images && firstColor.images.length > 0) {
-                            setCurrentImageSet(firstColor.images);
-                        } else {
-                            setCurrentImageSet(data.product.images || []);
-                        }
-                    } else {
-                        setCurrentImageSet(data.product.images || []);
-                    }
+                } else {
+                    setError('Product not found');
                 }
             } catch (err) {
-                console.error('Error fetching product:', err);
+                setError('Failed to load product');
             } finally {
                 setLoading(false);
             }
@@ -130,541 +60,428 @@ const ProductDetail = () => {
         fetchProduct();
     }, [id]);
 
-    const getImageUrl = (img) => {
-        if (!img) return '';
-        return typeof img === 'string' ? img : img.url;
-    };
-
     const handleAddToCart = () => {
-        if (!selectedSize) {
-            setPopupMessage('Please select a size before adding to cart');
-            setShowPopup(true);
-            return;
-        }
-
-        const isAlreadyInCart = cartItems.some(item =>
-            (item.id === productId || item.id === product?._id) &&
-            item.size === selectedSize &&
-            item.color === selectedColor
-        );
-
-        if (isAlreadyInCart) {
-            setPopupMessage('This item is already in your cart!');
-            setShowPopup(true);
-            return;
-        }
-
+        if (!selectedSize || !selectedColor) return;
         addToCart(product, selectedSize, selectedColor);
         setAddedToCart(true);
         setTimeout(() => setAddedToCart(false), 2000);
     };
 
     const handleBuyNow = () => {
-        if (!selectedSize) {
-            setPopupMessage('Please select a size before proceeding');
-            setShowPopup(true);
-            return;
-        }
-
-        const isAlreadyInCart = cartItems.some(item =>
-            (item.id === productId || item.id === product?._id) &&
-            item.size === selectedSize &&
-            item.color === selectedColor
-        );
-
-        if (!isAlreadyInCart) {
-            addToCart(product, selectedSize, selectedColor);
-        }
+        if (!selectedSize || !selectedColor) return;
+        addToCart(product, selectedSize, selectedColor);
         navigate('/cart');
     };
 
-    const handleWishlist = () => {
-        toggleWishlist(product);
+    if (loading) return (
+        <div style={{ height: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#fff' }}>
+            <div className="spinner"></div>
+        </div>
+    );
+
+    if (error || !product) return (
+        <div style={{ height: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
+            <h2 style={{ fontFamily: "'Playfair Display',serif", fontSize: '2rem' }}>{error || 'Not Found'}</h2>
+            <Link to="/products" style={{ marginTop: '20px', color: '#c5a059', fontWeight: 800 }}>Back to Collections</Link>
+        </div>
+    );
+
+    const price = product.isSpecialOffer && product.specialPrice ? product.specialPrice : product.price;
+    const originalPrice = product.originalPrice;
+    const hasDiscount = originalPrice && originalPrice > price;
+    
+    const colorImages = product.colors?.find(c => c.name === selectedColor)?.images;
+    const currentImages = (colorImages && colorImages.length > 0) ? colorImages : (product.images || []);
+
+    const getFullImgUrl = (url) => {
+        if (!url) return 'https://via.placeholder.com/800x1000?text=No+Image';
+        // Handle object cases (e.g., if url is {url: "..."})
+        const actualUrl = typeof url === 'string' ? url : (url.url || '');
+        if (!actualUrl || typeof actualUrl !== 'string') return 'https://via.placeholder.com/800x1000?text=No+Image';
+        
+        if (actualUrl.startsWith('http') || actualUrl.startsWith('data:')) return actualUrl;
+        return `http://localhost:5000/${actualUrl}`;
     };
 
-    if (loading) {
-        return (
-            <div className="loading-container">
-                <img src="/attire-logo.svg" alt="Loading" className="loading-logo" />
-                <div className="spinner"></div>
-                <p>Loading Product...</p>
-            </div>
-        );
-    }
-
-    if (!product) {
-        return (
-            <div className="error-container">
-                <h2>Product Not Found</h2>
-                <button onClick={() => navigate('/products')}>Back to Products</button>
-            </div>
-        );
-    }
-
     return (
-        <div className="product-detail-page">
+        <div className="product-page">
             <Navbar />
-
-            <div className="product-detail-container">
-                <div className="product-detail-content">
-                    {/* Product Images */}
-                    <div className="product-images">
-                        <div className="main-image">
-                            <img src={getImageUrl((currentImageSet.length > 0 ? currentImageSet : product.images)[selectedImage])} alt={product.name} />
-                            <button
-                                className={`wishlist-btn-large ${wishlisted ? 'active' : ''}`}
-                                onClick={handleWishlist}
-                            >
-                                <svg width="24" height="24" viewBox="0 0 24 24" fill={wishlisted ? "currentColor" : "none"} stroke="currentColor" strokeWidth="2">
-                                    <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
-                                </svg>
-                            </button>
-                        </div>
-                        <div className="image-thumbnails">
-                            {(currentImageSet.length > 0 ? currentImageSet : (product.images || [])).map((img, index) => (
-                                <div
-                                    key={index}
-                                    className={`thumbnail ${selectedImage === index ? 'active' : ''}`}
-                                    onClick={() => setSelectedImage(index)}
-                                >
-                                    <img src={getImageUrl(img)} alt={`${product.name} ${index + 1}`} />
-                                </div>
-                            ))}
-                        </div>
+            
+            <div className="product-layout">
+                {/* ── IMAGES PANEL ── */}
+                <div className="product-visuals anim from-left">
+                    <div className="main-display">
+                        <img 
+                            src={getFullImgUrl(currentImages[selectedImage])} 
+                            alt={product.name} 
+                            onError={(e) => { e.target.src = 'https://via.placeholder.com/800x1000?text=Error+Loading'; }}
+                        />
+                        <button 
+                            className={`wish-trigger ${isWishlisted(product._id) ? 'active' : ''}`}
+                            onClick={() => toggleWishlist(product)}
+                        >
+                            <svg width="22" height="22" viewBox="0 0 24 24" fill={isWishlisted(product._id) ? "currentColor" : "none"}>
+                                <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" stroke="currentColor" strokeWidth="1.5" />
+                            </svg>
+                        </button>
                     </div>
-
-                    {/* Product Info */}
-                    <div className="product-info-section">
-                        <h1 className="product-title">{product.name}</h1>
-
-                        <div className="product-meta">
-                            <div className="product-rating-section">
-                                <div className="stars">
-                                    {[...Array(5)].map((_, index) => (
-                                        <svg
-                                            key={index}
-                                            width="18"
-                                            height="18"
-                                            viewBox="0 0 24 24"
-                                            fill={index < Math.floor(product.rating) ? "currentColor" : "none"}
-                                            stroke="currentColor"
-                                            strokeWidth="2"
-                                        >
-                                            <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
-                                        </svg>
-                                    ))}
-                                </div>
-                                <span className="rating-text">{product.rating || 0} ({(product.reviews || []).length} reviews)</span>
+                    <div className="thumb-reel">
+                        {currentImages.map((img, i) => (
+                            <div 
+                                key={i} 
+                                className={`thumb ${selectedImage === i ? 'active' : ''}`}
+                                onClick={() => setSelectedImage(i)}
+                            >
+                                <img src={getFullImgUrl(img)} alt="" />
                             </div>
-                        </div>
+                        ))}
+                    </div>
+                </div>
 
-                        <div className="product-price-section">
-                            <div className="price-wrapper">
-                                {product.isSpecialOffer && product.specialPrice ? (
+                {/* ── INFO PANEL ── */}
+                <div className="product-details anim from-right">
+                    <div className="details-header">
+                        <p className="category-label">{product.category}</p>
+                        <h1 className="product-name">{product.name}</h1>
+                        <div className="price-tag">
+                            <div className="p-vessel">
+                                <span className="current">₹{price.toLocaleString('en-IN')}</span>
+                                {hasDiscount && (
                                     <>
-                                        {product.originalPrice && <span className="original-price">₹{product.originalPrice.toLocaleString('en-IN')}</span>}
-                                        <span className="current-price">₹{product.specialPrice.toLocaleString('en-IN')}</span>
-                                        {product.extraDiscount && <span className="discount-badge">+{product.extraDiscount}% Extra</span>}
-                                    </>
-                                ) : (
-                                    <>
-                                        {product.originalPrice && (
-                                            <span className="original-price">₹{product.originalPrice.toLocaleString('en-IN')}</span>
-                                        )}
-                                        <span className="current-price">₹{product.price.toLocaleString('en-IN')}</span>
-                                        {product.discount && (
-                                            <span className="discount-badge">-{product.discount}% OFF</span>
-                                        )}
+                                        <span className="original">₹{originalPrice.toLocaleString('en-IN')}</span>
+                                        <span className="sale-badge">-{Math.round(((originalPrice - price) / originalPrice) * 100)}%</span>
                                     </>
                                 )}
                             </div>
-                            <p className="tax-info">Inclusive of all taxes</p>
-                        </div>
-
-                        {product.isSpecialOffer && product.couponCode && (
-                            <div className="special-promo-card">
-                                <div className="promo-label">SPECIAL OFFER PROMO</div>
-                                <div className="promo-code-display">
-                                    <code>{product.couponCode}</code>
-                                    <button onClick={() => navigator.clipboard.writeText(product.couponCode)}>📋 Copy</button>
+                            {product.promoCode && (
+                                <div className="detail-promo-badge">
+                                    <span className="p-icon">🏷️</span>
+                                    <span>Use code <strong>{product.promoCode}</strong> for special reduction</span>
                                 </div>
-                                <p><strong>Use promo code to get {product.extraDiscount}% extra discount!</strong></p>
-                                <p>Apply this code in your cart for the special offer price!</p>
-                            </div>
-                        )}
+                            )}
+                        </div>
+                    </div>
 
-                        {/* Color Selection */}
-                        <div className="selection-section">
-                            <label>Select Color:</label>
-                            <div className="color-options">
-                                {(product.colors || []).map((color, index) => (
-                                    <div
-                                        key={index}
-                                        className={`color-option ${selectedColor === color.name ? 'active' : ''}`}
-                                        onClick={() => {
-                                            setSelectedColor(color.name);
-                                            setSelectedImage(0);
-                                            if (color.images && color.images.length > 0) {
-                                                setCurrentImageSet(color.images);
-                                            } else {
-                                                setCurrentImageSet(product.images || []);
-                                            }
-                                        }}
-                                        title={color.name}
+                    <div className="selectors">
+                        {/* Colors */}
+                        <div className="selector-group">
+                            <label>Finish / Color</label>
+                            <div className="color-grid">
+                                {product.colors?.map(color => (
+                                    <button 
+                                        key={color.name}
+                                        className={`color-pill ${selectedColor === color.name ? 'active' : ''}`}
+                                        onClick={() => { setSelectedColor(color.name); setSelectedImage(0); }}
                                     >
-                                        <span
-                                            className="color-circle"
-                                            style={{ backgroundColor: color.hexCode }}
-                                        ></span>
-                                        <span className="color-name">{color.name}</span>
-                                    </div>
+                                        <span className="c-dot" style={{ background: color.hexCode }} />
+                                        {color.name}
+                                    </button>
                                 ))}
                             </div>
                         </div>
 
-                        {/* Size Selection */}
-                        <div className="selection-section">
-                            <label>Select Size:</label>
-                            <div className="size-options">
-                                {(product.sizes || []).map((size, index) => (
-                                    <button
-                                        key={index}
-                                        className={`size-option ${selectedSize === size ? 'active' : ''}`}
+                        {/* Sizes */}
+                        <div className="selector-group">
+                            <label>Size / Fit</label>
+                            <div className="size-grid">
+                                {product.sizes?.map(size => (
+                                    <button 
+                                        key={size}
+                                        className={`size-btn ${selectedSize === size ? 'active' : ''}`}
                                         onClick={() => setSelectedSize(size)}
                                     >
                                         {size}
                                     </button>
                                 ))}
                             </div>
-                            <a href="#size-guide" className="size-guide-link">Size Guide</a>
                         </div>
+                    </div>
 
-                        <div className="selection-section">
-                            <label>Availability:</label>
-                            <div className="stock-metrics-detail">
-                                <div className="detail-metric">
-                                    <span className="label">Current Stock:</span>
-                                    <span className={`value ${product.stock < 10 ? 'low' : ''}`}>
-                                        {product.stock > 0 ? `${product.stock} units available` : 'Out of Stock'}
-                                    </span>
-                                </div>
-                                <div className="detail-metric">
-                                    <span className="label">Popularity:</span>
-                                    <span className="value">{product.sold || 0} units already sold</span>
-                                </div>
-                            </div>
+                    {/* Meta Info */}
+                    <div className="quick-stats">
+                        <div className="stat">
+                            <span className="label">Stock Status</span>
+                            <span className={`value ${product.stock < 10 ? 'low' : ''}`}>
+                                {product.stock > 0 ? `${product.stock} Units Left` : 'Sold Out'}
+                            </span>
                         </div>
-
-                        <div className="selection-section">
-                            <label>Quantity:</label>
-                            <div className="quantity-selector">
-                                <button
-                                    onClick={() => setQuantity(Math.max(1, quantity - 1))}
-                                    disabled={quantity <= 1}
-                                >
-                                    -
-                                </button>
-                                <span>{quantity}</span>
-                                <button
-                                    onClick={() => setQuantity(Math.min(product.stock, quantity + 1))}
-                                    disabled={quantity >= product.stock}
-                                >
-                                    +
-                                </button>
-                            </div>
+                        <div className="stat">
+                            <span className="label">Orders</span>
+                            <span className="value">{product.sold || 0}+ Pieces Sold</span>
                         </div>
+                    </div>
 
-                        {/* Action Buttons */}
-                        <button className="try-on-btn-large" onClick={() => setIsTryOnOpen(true)}>
-                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    {/* Actions */}
+                    <div className="action-stack">
+                        <button className="try-on-trigger" onClick={() => setIsTryOnOpen(true)}>
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
                                 <path d="M20.38 3.46L16 2a4 4 0 01-8 0L3.62 3.46a2 2 0 00-1.34 2.23l.58 3.47a1 1 0 00.99.84H6v10c0 1.1.9 2 2 2h8a2 2 0 002-2V10h2.15a1 1 0 00.99-.84l.58-3.47a2 2 0 00-1.34-2.23z" />
                                 <path d="M9 10v10M15 10v10" />
                             </svg>
-                            Virtual Try-On
+                            Explore Virtual Try-On
                         </button>
-
-                        <div className="action-buttons">
-                            <button className={`add-to-cart-btn ${addedToCart ? 'added' : ''}`} onClick={handleAddToCart}>
-                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                                    <circle cx="9" cy="21" r="1" />
-                                    <circle cx="20" cy="21" r="1" />
-                                    <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6" />
-                                </svg>
-                                {addedToCart ? 'Added ✓' : 'Add to Cart'}
+                        
+                        <div className="buy-btns">
+                            <button 
+                                className={`add-cart-btn ${addedToCart ? 'success' : ''}`}
+                                onClick={handleAddToCart}
+                                disabled={product.stock <= 0}
+                            >
+                                {addedToCart ? 'Item Added' : 'Add to Cart'}
                             </button>
-                            <button className="buy-now-btn" onClick={handleBuyNow}>
-                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-                                    <polyline points="7 10 12 15 17 10" />
-                                    <line x1="12" y1="15" x2="12" y2="3" />
-                                </svg>
-                                Buy Now
+                            <button className="buy-now-btn" onClick={handleBuyNow} disabled={product.stock <= 0}>
+                                Purchase Now
                             </button>
                         </div>
+                    </div>
 
-                        {/* Product Description */}
-                        <div className="product-description">
-                            <h3>Product Description</h3>
+                    {/* Collapsible Tabs (Simplified) */}
+                    <div className="product-accordion">
+                        <div className="acc-item">
+                            <h3>Description</h3>
                             <p>{product.description}</p>
                         </div>
-
-
-                    </div>
-                </div>
-
-                {/* Reviews Section */}
-                <div className="reviews-section">
-                    <div className="reviews-header">
-                        <h2>Customer Reviews</h2>
-                        <div className="reviews-summary">
-                            <div className="average-rating">
-                                <span className="rating-number">{product.rating}</span>
-                                <div className="stars-large">
-                                    {[...Array(5)].map((_, index) => (
-                                        <svg
-                                            key={index}
-                                            width="24"
-                                            height="24"
-                                            viewBox="0 0 24 24"
-                                            fill={index < Math.floor(product.rating) ? "currentColor" : "none"}
-                                            stroke="currentColor"
-                                            strokeWidth="2"
-                                        >
-                                            <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
-                                        </svg>
-                                    ))}
-                                </div>
-                                <p>{product.totalReviews} Reviews</p>
-                            </div>
-                            <button
-                                className="write-review-btn"
-                                onClick={() => setShowReviewForm(!showReviewForm)}
-                            >
-                                Write a Review
-                            </button>
+                        <div className="acc-item">
+                            <h3>Specifications</h3>
+                            <ul className="spec-list">
+                                <li>Artisanal Weave</li>
+                                <li>Sustainable Sourcing</li>
+                                <li>Signature ATTIRE Fit</li>
+                            </ul>
                         </div>
-                    </div>
-
-                    {showReviewForm && (
-                        <div className="review-form">
-                            <h3>Write Your Review</h3>
-                            <form>
-                                <div className="form-group">
-                                    <label>Rating:</label>
-                                    <div className="star-rating-input">
-                                        {[1, 2, 3, 4, 5].map((star) => (
-                                            <svg
-                                                key={star}
-                                                width="24"
-                                                height="24"
-                                                viewBox="0 0 24 24"
-                                                fill="none"
-                                                stroke="currentColor"
-                                                strokeWidth="2"
-                                                style={{ cursor: 'pointer' }}
-                                            >
-                                                <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
-                                            </svg>
-                                        ))}
-                                    </div>
-                                </div>
-                                <div className="form-group">
-                                    <label>Your Review:</label>
-                                    <textarea rows="4" placeholder="Share your experience with this product..."></textarea>
-                                </div>
-                                <div className="form-actions">
-                                    <button type="submit" className="submit-review-btn">Submit Review</button>
-                                    <button type="button" className="cancel-btn" onClick={() => setShowReviewForm(false)}>Cancel</button>
-                                </div>
-                            </form>
-                        </div>
-                    )}
-
-                    <div className="reviews-list">
-                        {(product.reviews || []).map((review) => (
-                            <div key={review._id || review.id} className="review-item">
-                                <div className="review-header">
-                                    <div className="reviewer-info">
-                                        <div className="reviewer-avatar">
-                                            {(review.user || "A").charAt(0)}
-                                        </div>
-                                        <div>
-                                            <h4>{review.user}</h4>
-                                            {review.verified && (
-                                                <span className="verified-badge">
-                                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
-                                                        <path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                                                    </svg>
-                                                    Verified Purchase
-                                                </span>
-                                            )}
-                                        </div>
-                                    </div>
-                                    <span className="review-date">{review.date}</span>
-                                </div>
-                                <div className="review-rating">
-                                    {[...Array(5)].map((_, index) => (
-                                        <svg
-                                            key={index}
-                                            width="16"
-                                            height="16"
-                                            viewBox="0 0 24 24"
-                                            fill={index < review.rating ? "currentColor" : "none"}
-                                            stroke="currentColor"
-                                            strokeWidth="2"
-                                        >
-                                            <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
-                                        </svg>
-                                    ))}
-                                </div>
-                                <p className="review-comment">{review.comment}</p>
-                            </div>
-                        ))}
                     </div>
                 </div>
             </div>
 
-            <TryOnModal
-                isOpen={isTryOnOpen}
-                onClose={() => setIsTryOnOpen(false)}
-                product={product}
-                selectedColor={selectedColor}
-            />
+            {/* ── REVIEWS & RATINGS SECTION ── */}
+            <section className="product-reviews-section anim from-bottom">
+                 <div className="reviews-container">
+                     <div className="reviews-sidebar">
+                         <div className="rating-summary">
+                             <h2>Registry & Feedback</h2>
+                             <div className="big-rating">
+                                 <span className="num">4.9</span>
+                                 <div className="stars">★★★★★</div>
+                                 <span className="total">Based on 128 Reviews</span>
+                             </div>
+                             <div className="rating-bars">
+                                 {[5,4,3,2,1].map(s => (
+                                     <div key={s} className="r-bar">
+                                         <span>{s}★</span>
+                                         <div className="bar-bg"><div className="bar-fill" style={{ width: s === 5 ? '85%' : s === 4 ? '12%' : '1%' }} /></div>
+                                         <span>{s === 5 ? '109' : s === 4 ? '15' : '2'}</span>
+                                     </div>
+                                 ))}
+                             </div>
+                             <button className="write-review-btn">Share Your Experience</button>
+                         </div>
+                     </div>
 
-            {showPopup && (
-                <div className="popup-overlay" onClick={() => setShowPopup(false)}>
-                    <div className="popup-content" onClick={(e) => e.stopPropagation()}>
-                        <div className="popup-icon">
-                            <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                                <circle cx="12" cy="12" r="10" />
-                                <line x1="12" y1="8" x2="12" y2="12" />
-                                <line x1="12" y1="16" x2="12.01" y2="16" />
-                            </svg>
-                        </div>
-                        <h3>Notice</h3>
-                        <p>{popupMessage}</p>
-                        <button className="popup-close-btn" onClick={() => setShowPopup(false)}>
-                            Dismiss
-                        </button>
-                    </div>
-                </div>
+                     <div className="reviews-list">
+                         <div className="list-header">
+                            <h3>Verified Acquisitions</h3>
+                            <div className="list-sort">
+                                Sort by: <strong>Newest First</strong>
+                            </div>
+                         </div>
+
+                         <div className="reviews-stack">
+                             {[
+                                 {
+                                     user: "Liam V.",
+                                     rating: 5,
+                                     date: "Oct 12, 2024",
+                                     comment: "The cut and fabric quality are beyond expectations. It feels like a bespoke piece from a luxury house. Highly recommended for those who appreciate understated elegance.",
+                                     images: ["https://images.unsplash.com/photo-1594932224011-046644265cc2?w=400&q=80"]
+                                 },
+                                 {
+                                     user: "Sophia M.",
+                                     rating: 4,
+                                     date: "Sept 28, 2024",
+                                     comment: "Excellent fit. The gold accents are subtle but add that premium touch. Shipping took a bit longer than expected, but the item itself is perfect.",
+                                     images: []
+                                 }
+                             ].map((rev, i) => (
+                                 <div key={i} className="review-vessel anim fade">
+                                     <div className="rev-head">
+                                         <div className="rev-user">
+                                             <div className="u-avatar">{rev.user[0]}</div>
+                                             <div>
+                                                 <strong>{rev.user}</strong>
+                                                 <span>Verified Purchase • {rev.date}</span>
+                                             </div>
+                                         </div>
+                                         <div className="rev-stars">{"★".repeat(rev.rating)}{"☆".repeat(5-rev.rating)}</div>
+                                     </div>
+                                     <p className="rev-comment">{rev.comment}</p>
+                                     {rev.images.length > 0 && (
+                                         <div className="rev-images">
+                                             {rev.images.map((img, idx) => (
+                                                 <img key={idx} src={img} alt="User upload" />
+                                             ))}
+                                         </div>
+                                     )}
+                                     <div className="rev-footer">
+                                         <button>Helpful</button>
+                                         <button>Report</button>
+                                     </div>
+                                 </div>
+                             ))}
+                         </div>
+                         <button className="load-more-reviews">Load More Reviews</button>
+                     </div>
+                 </div>
+            </section>
+
+            {isTryOnOpen && (
+                <TryOnModal 
+                    isOpen={isTryOnOpen} 
+                    onClose={() => setIsTryOnOpen(false)} 
+                    product={product} 
+                />
             )}
 
             <style>{`
-                .popup-overlay {
-                    position: fixed;
-                    top: 0;
-                    left: 0;
-                    width: 100%;
-                    height: 100%;
-                    background: rgba(0, 0, 0, 0.7);
-                    backdrop-filter: blur(8px);
-                    display: flex;
-                    justify-content: center;
-                    align-items: center;
-                    z-index: 9999;
-                    animation: fadeIn 0.3s ease-out;
+                .product-page { padding-top: 100px; background: #fff; min-height: 100vh; }
+                .product-layout { display: flex; gap: 80px; padding: 0 8%; margin-bottom: 100px; }
+                
+                .product-visuals { flex: 1.2; position: sticky; top: 120px; align-self: flex-start; }
+                .main-display { position: relative; aspect-ratio: 1/1; overflow: hidden; background: #f9f9f9; }
+                .main-display img { width: 100%; height: 100%; object-fit: cover; }
+                .wish-trigger { 
+                    position: absolute; top: 30px; right: 30px; width: 50px; height: 50px; 
+                    border-radius: 50%; border: none; background: #fff; color: #000;
+                    display: flex; align-items: center; justify-content: center;
+                    box-shadow: 0 10px 30px rgba(0,0,0,0.08); transition: transform 0.3s;
                 }
+                .wish-trigger:hover { transform: scale(1.1); }
+                .wish-trigger.active { color: #c5a059; }
 
-                .popup-content {
-                    background: #1a1a1a;
-                    color: white;
-                    padding: 2.5rem;
-                    border-radius: 20px;
-                    text-align: center;
-                    max-width: 400px;
-                    width: 90%;
-                    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
-                    border: 1px solid rgba(255, 255, 255, 0.1);
-                    transform: translateY(0);
-                    animation: slideUp 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+                .thumb-reel { display: flex; gap: 15px; margin-top: 20px; overflow-x: auto; padding-bottom: 5px; }
+                .thumb { 
+                    width: 90px; height: 90px; flex-shrink: 0; cursor: pointer; 
+                    opacity: 0.5; transition: opacity 0.3s; border: 1px solid transparent;
                 }
+                .thumb.active { opacity: 1; border-color: #000; }
+                .thumb img { width: 100%; height: 100%; object-fit: cover; }
 
-                .popup-icon {
-                    color: #FFC107;
-                    margin-bottom: 1.5rem;
-                    display: flex;
-                    justify-content: center;
+                .product-details { flex: 1.2; }
+                .category-label { font-size: 0.7rem; letter-spacing: 4px; text-transform: uppercase; color: #c5a059; font-weight: 700; margin-bottom: 15px; }
+                .product-name { font-family: 'Playfair Display', serif; font-size: 3.5rem; line-height: 1.1; margin-bottom: 24px; color: #000; }
+                .price-tag { display: flex; flex-direction: column; gap: 12px; margin-bottom: 40px; }
+                .p-vessel { display: flex; align-items: baseline; gap: 15px; }
+                .price-tag .current { font-size: 2.2rem; font-weight: 700; color: #000; }
+                .price-tag .original { color: #aaa; text-decoration: line-through; font-size: 1.1rem; }
+                .sale-badge { background: #000; color: #c5a059; padding: 4px 10px; font-size: 0.75rem; font-weight: 800; }
+                
+                .detail-promo-badge {
+                    display: inline-flex; align-items: center; gap: 10px;
+                    padding: 10px 16px; background: rgba(197,160,89,0.08);
+                    border: 1px solid rgba(197,160,89,0.15); border-radius: 4px;
+                    color: var(--gold-dark); font-size: 0.8rem; font-weight: 600;
                 }
+                .detail-promo-badge strong { color: #000; font-weight: 800; }
 
-                .popup-content h3 {
-                    font-size: 1.5rem;
-                    margin-bottom: 1rem;
-                    color: #FFC107;
+                .selector-group { margin-bottom: 35px; }
+                .selector-group label { display: block; font-size: 0.65rem; letter-spacing: 3px; text-transform: uppercase; font-weight: 800; margin-bottom: 18px; color: #888; }
+                .color-grid { display: flex; flex-wrap: wrap; gap: 12px; }
+                .color-pill { 
+                    display: flex; align-items: center; gap: 10px; padding: 10px 20px; 
+                    background: #f5f5f5; border: 1px solid transparent; font-size: 0.85rem; font-weight: 600;
+                    transition: all 0.3s; cursor: pointer;
                 }
-
-                .popup-content p {
-                    font-size: 1.1rem;
-                    margin-bottom: 2rem;
-                    line-height: 1.6;
-                    opacity: 0.9;
+                .color-pill.active { background: #000; color: #fff; border-color: #000; }
+                .c-dot { width: 10px; height: 10px; border-radius: 50%; border: 1px solid rgba(0,0,0,0.1); }
+                
+                .size-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px; }
+                .size-btn { 
+                    padding: 15px 0; background: #fff; border: 1px solid #eee; 
+                    font-size: 0.9rem; font-weight: 700; transition: all 0.3s; cursor: pointer;
                 }
+                .size-btn:hover { border-color: #000; }
+                .size-btn.active { background: #000; color: #fff; border-color: #000; }
 
-                .popup-close-btn {
-                    background: #FFC107;
-                    color: black;
-                    border: none;
-                    padding: 0.8rem 2.5rem;
-                    border-radius: 50px;
-                    font-weight: 700;
-                    font-size: 1rem;
-                    cursor: pointer;
-                    transition: all 0.3s ease;
-                    text-transform: uppercase;
-                    letter-spacing: 1px;
+                .quick-stats { display: flex; gap: 40px; padding: 25px 0; border-top: 1px solid #eee; border-bottom: 1px solid #eee; margin-bottom: 40px; }
+                .stat .label { display: block; font-size: 0.6rem; letter-spacing: 2px; text-transform: uppercase; color: #aaa; margin-bottom: 5px; }
+                .stat .value { font-weight: 700; font-size: 0.95rem; color: #000; }
+                .stat .value.low { color: #b91c1c; }
+
+                .action-stack { display: flex; flexDirection: column; gap: 15px; margin-bottom: 50px; }
+                .try-on-trigger { 
+                    display: flex; align-items: center; justify-content: center; gap: 12px;
+                    width: 100%; padding: 20px; background: transparent; border: 1px solid #c5a059;
+                    color: #c5a059; font-size: 0.75rem; font-weight: 800; letter-spacing: 3px;
+                    text-transform: uppercase; transition: all 0.3s; cursor: pointer;
                 }
+                .try-on-trigger:hover { background: rgba(197,160,89,0.05); }
 
-                .popup-close-btn:hover {
-                    background: #ffdb70;
-                    transform: scale(1.05);
-                    box-shadow: 0 5px 15px rgba(255, 193, 7, 0.4);
+                .buy-btns { display: flex; gap: 15px; }
+                .add-cart-btn { 
+                    flex: 1; padding: 22px; background: #000; color: #c5a059; border: none;
+                    font-size: 0.75rem; font-weight: 800; letter-spacing: 3px; text-transform: uppercase;
+                    transition: all 0.3s; cursor: pointer;
                 }
-
-                @keyframes fadeIn {
-                    from { opacity: 0; }
-                    to { opacity: 1; }
+                .add-cart-btn:hover { background: #222; }
+                .add-cart-btn.success { background: #166534; color: #fff; }
+                .buy-now-btn { 
+                    flex: 1; padding: 22px; background: #c5a059; color: #000; border: none;
+                    font-size: 0.75rem; font-weight: 800; letter-spacing: 3px; text-transform: uppercase;
+                    transition: all 0.3s; cursor: pointer;
                 }
+                .buy-now-btn:hover { background: #b08d4a; }
 
-                @keyframes slideUp {
-                    from { opacity: 0; transform: translateY(20px); }
-                    to { opacity: 1; transform: translateY(0); }
-                }
+                .product-accordion .acc-item { margin-bottom: 30px; }
+                .product-accordion h3 { font-size: 0.8rem; letter-spacing: 2px; text-transform: uppercase; margin-bottom: 15px; color: #000; }
+                .product-accordion p { color: #666; font-size: 1rem; line-height: 1.8; }
+                .spec-list { padding-left: 20px; margin-top: 10px; }
+                .spec-list li { list-style: disc; color: #666; font-size: 0.95rem; margin-bottom: 8px; }
 
-                .try-on-btn-large {
-                    width: 100%;
-                    padding: 1rem;
-                    margin-bottom: 20px;
-                    background: #1a1a1a;
-                    color: #FFC107;
-                    border: 1px solid #FFC107;
-                    border-radius: 12px;
-                    font-weight: 700;
-                    display: flex;
-                    align-items: center;
-                    justify-content: center;
-                    gap: 12px;
-                    font-size: 1.1rem;
-                    cursor: pointer;
-                    transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-                    box-shadow: 0 10px 20px rgba(0,0,0,0.1);
-                    text-transform: uppercase;
-                    letter-spacing: 1px;
-                }
+                /* REVIEWS STYLES */
+                .product-reviews-section { padding: 100px 8%; background: #fafafa; border-top: 1px solid #eee; }
+                .reviews-container { display: flex; gap: 80px; }
+                .reviews-sidebar { flex: 0.8; }
+                .reviews-list { flex: 2; }
+                
+                .rating-summary h2 { font-family: 'Playfair Display', serif; font-size: 2.2rem; margin-bottom: 30px; }
+                .big-rating { margin-bottom: 40px; }
+                .big-rating .num { font-size: 4rem; font-weight: 900; color: #000; line-height: 1; display: block; }
+                .big-rating .stars { font-size: 1.4rem; color: #c5a059; margin: 10px 0; }
+                .big-rating .total { font-size: 0.75rem; color: #999; text-transform: uppercase; letter-spacing: 1px; }
+                
+                .r-bar { display: flex; align-items: center; gap: 15px; margin-bottom: 12px; font-size: 0.75rem; font-weight: 700; color: #666; }
+                .bar-bg { flex: 1; height: 4px; background: #eee; border-radius: 2px; overflow: hidden; }
+                .bar-fill { height: 100%; background: #000; }
+                
+                .write-review-btn { width: 100%; padding: 18px; margin-top: 40px; border: 1px solid #000; background: transparent; color: #000; font-size: 0.7rem; font-weight: 800; letter-spacing: 2px; text-transform: uppercase; }
+                .write-review-btn:hover { background: #000; color: #c5a059; }
 
-                .try-on-btn-large:hover {
-                    background: #c5a059;
-                    color: white;
-                    border-color: #c5a059;
-                    transform: translateY(-3px);
-                    box-shadow: 0 15px 30px rgba(197, 160, 89, 0.4);
-                }
+                .list-header { display: flex; justify-content: space-between; align-items: center; padding-bottom: 20px; border-bottom: 1px solid #eee; margin-bottom: 40px; }
+                .list-header h3 { font-size: 0.75rem; text-transform: uppercase; letter-spacing: 3px; font-weight: 800; }
+                .list-sort { font-size: 0.8rem; color: #666; }
+                .list-sort strong { color: #000; }
 
-                .try-on-btn-large svg {
-                    transition: transform 0.3s;
-                }
+                .review-vessel { padding-bottom: 40px; border-bottom: 1px solid #eee; margin-bottom: 40px; }
+                .rev-head { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 20px; }
+                .rev-user { display: flex; gap: 15px; align-items: center; }
+                .u-avatar { width: 45px; height: 45px; background: #000; color: #c5a059; display: flex; align-items: center; justify-content: center; border-radius: 50%; font-weight: 800; font-size: 1.2rem; }
+                .rev-user strong { display: block; font-size: 1rem; }
+                .rev-user span { font-size: 0.75rem; color: #999; }
+                .rev-stars { color: #c5a059; font-size: 1.1rem; }
+                .rev-comment { font-size: 1.1rem; line-height: 1.7; color: #444; margin-bottom: 25px; }
+                .rev-images { display: flex; gap: 15px; margin-bottom: 25px; }
+                .rev-images img { width: 120px; height: 120px; object-fit: cover; border-radius: 4px; }
+                .rev-footer { display: flex; gap: 20px; }
+                .rev-footer button { background: none; font-size: 0.75rem; font-weight: 700; color: #aaa; }
+                .rev-footer button:hover { color: #000; text-decoration: underline; }
 
-                .try-on-btn-large:hover svg {
-                    transform: rotate(15deg);
+                .load-more-reviews { width: 100%; padding: 20px; background: #f0f0f0; border: none; font-size: 0.7rem; font-weight: 800; letter-spacing: 2px; text-transform: uppercase; color: #666; }
+                .load-more-reviews:hover { background: #e8e8e8; color: #000; }
+
+                @media(max-width: 1024px) {
+                    .reviews-container { flex-direction: column; gap: 60px; }
+                    .product-layout { flex-direction: column; gap: 50px; }
+                    .product-visuals { position: relative; top: 0; }
+                    .product-name { font-size: 2.5rem; }
                 }
             `}</style>
         </div>

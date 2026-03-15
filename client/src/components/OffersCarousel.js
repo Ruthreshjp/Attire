@@ -1,168 +1,134 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import Slider from 'react-slick';
-import { Link } from 'react-router-dom';
-import { useWishlist } from '../context/WishlistContext';
+import { useNavigate } from 'react-router-dom';
 
+const FALLBACK_OFFERS = [
+    {
+        _id: '1',
+        name: 'Classic Oxford Shirt',
+        category: 'Shirts',
+        originalPrice: 3499,
+        specialPrice: 1999,
+        discount: 43,
+        images: [{ url: 'https://images.unsplash.com/photo-1602810318383-e386cc2a3ccf?w=600&q=80' }],
+        isSpecialOffer: true,
+    },
+    {
+        _id: '2',
+        name: 'Slim Fit Chinos',
+        category: 'Pants',
+        originalPrice: 2999,
+        specialPrice: 1699,
+        discount: 43,
+        images: [{ url: 'https://images.unsplash.com/photo-1473966968600-fa801b869a1a?w=600&q=80' }],
+        isSpecialOffer: true,
+    },
+    {
+        _id: '3',
+        name: 'Premium Graphic Tee',
+        category: 'T-Shirts',
+        originalPrice: 1499,
+        specialPrice: 799,
+        discount: 47,
+        images: [{ url: 'https://images.unsplash.com/photo-1521572163474-6864f9cf17ab?w=600&q=80' }],
+        isSpecialOffer: true,
+    },
+    {
+        _id: '4',
+        name: 'Selvedge Denim Jeans',
+        category: 'Jeans',
+        originalPrice: 4499,
+        specialPrice: 2499,
+        discount: 44,
+        images: [{ url: 'https://images.unsplash.com/photo-1542272604-787c3835535d?w=600&q=80' }],
+        isSpecialOffer: true,
+    },
+    {
+        _id: '5',
+        name: 'Heritage Kurta',
+        category: 'Kurta',
+        originalPrice: 2999,
+        specialPrice: 1499,
+        discount: 50,
+        images: [{ url: 'https://images.unsplash.com/photo-1610414316335-97836802f067?w=600&q=80' }],
+        isSpecialOffer: true,
+    },
+];
 
 const OffersCarousel = () => {
-    const { toggleWishlist, isWishlisted } = useWishlist();
-    const [offers, setOffers] = React.useState([]);
-    const [loading, setLoading] = React.useState(true);
+    const [offers, setOffers] = useState([]);
+    const navigate = useNavigate();
 
-    React.useEffect(() => {
-        const fetchSpecialOffers = async () => {
-            try {
-                const response = await fetch('http://localhost:5000/api/products');
-                const data = await response.json();
+    useEffect(() => {
+        fetch('http://localhost:5000/api/products')
+            .then(r => r.json())
+            .then(data => {
                 if (data.success) {
                     const specialOffers = data.products.filter(p => p.isSpecialOffer);
-                    // Ensure unique products by _id
-                    const uniqueOffers = Array.from(new Map(specialOffers.map(item => [item['_id'], item])).values());
-                    setOffers(uniqueOffers);
+                    setOffers(specialOffers.length >= 3 ? specialOffers : FALLBACK_OFFERS);
+                } else {
+                    setOffers(FALLBACK_OFFERS);
                 }
-            } catch (err) {
-                console.error('Error fetching special offers:', err);
-            } finally {
-                setLoading(false);
-            }
-        };
-        fetchSpecialOffers();
+            })
+            .catch(() => setOffers(FALLBACK_OFFERS));
     }, []);
 
     const settings = {
-        dots: false,
-        infinite: offers.length > 5,
-        speed: 600,
-        slidesToShow: 5,
+        dots: true,
+        infinite: true,
+        speed: 700,
+        slidesToShow: 3,
         slidesToScroll: 1,
-        autoplay: offers.length > 5,
+        autoplay: true,
         autoplaySpeed: 4000,
         pauseOnHover: true,
-        arrows: true,
+        arrows: false,
         responsive: [
-            {
-                breakpoint: 1400,
-                settings: {
-                    slidesToShow: 4,
-                    infinite: offers.length > 4,
-                    autoplay: offers.length > 4
-                }
-            },
-            {
-                breakpoint: 1024,
-                settings: {
-                    slidesToShow: 3,
-                    infinite: offers.length > 3,
-                    autoplay: offers.length > 3
-                }
-            },
-            {
-                breakpoint: 768,
-                settings: {
-                    slidesToShow: 2,
-                    infinite: offers.length > 2,
-                    autoplay: offers.length > 2
-                }
-            },
-            {
-                breakpoint: 576,
-                settings: {
-                    slidesToShow: 1,
-                    slidesToScroll: 1,
-                    arrows: false,
-                    infinite: offers.length > 1,
-                    autoplay: offers.length > 1
-                }
-            }
-        ]
+            { breakpoint: 1024, settings: { slidesToShow: 2 } },
+            { breakpoint: 640,  settings: { slidesToShow: 1 } },
+        ],
     };
 
-    if (loading) return null;
     if (offers.length === 0) return null;
 
     return (
-        <div className="offers-section">
-            <div className="section-header">
-                <h2 className="section-title">Special Offers</h2>
-                <p className="section-subtitle">Limited time deals you don't want to miss</p>
+        <section className="offers-section">
+            <div className="offers-header">
+                <p className="pre">Limited Time</p>
+                <h2>Exclusive Offers</h2>
             </div>
+            <Slider {...settings}>
+                {offers.map(offer => {
+                    const image = offer.images?.[0]
+                        ? (typeof offer.images[0] === 'string' ? offer.images[0] : offer.images[0].url)
+                        : offer.image;
+                    const price = offer.specialPrice || offer.price;
+                    const original = offer.originalPrice;
+                    const pct = original && price < original
+                        ? Math.round(((original - price) / original) * 100)
+                        : offer.discount;
 
-            <div className="offers-carousel">
-                <Slider {...settings}>
-                    {offers.map((offer) => (
-                        <div key={offer._id} className="offer-slide-wrapper">
+                    return (
+                        <div key={offer._id} onClick={() => navigate(`/product/${offer._id}`)}>
                             <div className="offer-card">
-                                <div className="offer-image-container">
-                                    <img
-                                        src={offer.images && offer.images[0] ? (typeof offer.images[0] === 'string' ? offer.images[0] : offer.images[0].url) : offer.image}
-                                        alt={offer.name}
-                                        className="offer-image"
-                                    />
-                                    <div className="offer-badge">
-                                        {offer.extraDiscount ? `+${offer.extraDiscount}% EXTRA` : `${offer.discount}% OFF`}
+                                {pct > 0 && <span className="offer-badge">{pct}% OFF</span>}
+                                <img src={image} alt={offer.name} />
+                                <div className="offer-info">
+                                    <p className="offer-tag">{offer.category}</p>
+                                    <p className="offer-name">{offer.name}</p>
+                                    <div style={{ display: 'flex', alignItems: 'baseline', gap: '8px' }}>
+                                        <span className="offer-price">₹{price?.toLocaleString('en-IN')}</span>
+                                        {original && original > price && (
+                                            <span className="offer-old-price">₹{original.toLocaleString('en-IN')}</span>
+                                        )}
                                     </div>
-                                    <button
-                                        className={`offer-wishlist-btn ${isWishlisted(offer._id) ? 'active' : ''}`}
-                                        onClick={(e) => {
-                                            e.preventDefault();
-                                            e.stopPropagation();
-                                            toggleWishlist(offer);
-                                        }}
-                                    >
-                                        <svg width="18" height="18" viewBox="0 0 24 24" fill={isWishlisted(offer._id) ? "currentColor" : "none"} stroke="currentColor" strokeWidth="2">
-                                            <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
-                                        </svg>
-                                    </button>
-                                </div>
-                                <div className="offer-content">
-                                    <h3 className="offer-title">{offer.name}</h3>
-                                    <div className="offer-pricing">
-                                        {offer.originalPrice && <span className="old-price">₹{offer.originalPrice}</span>}
-                                        <span className="new-price">₹{offer.specialPrice || offer.price}</span>
-                                    </div>
-                                    <p className="offer-category">{offer.category}</p>
-                                    <div className="offer-code">
-                                        <span>Code:</span>
-                                        <strong>{offer.couponCode}</strong>
-                                    </div>
-                                    <Link to={`/product/${offer._id}`} className="offer-button">Shop Now</Link>
                                 </div>
                             </div>
                         </div>
-                    ))}
-                </Slider>
-            </div>
-            <style>{`
-                .offer-image-container {
-                    position: relative;
-                }
-                .offer-wishlist-btn {
-                    position: absolute;
-                    top: 10px;
-                    right: 10px;
-                    background: white;
-                    border: none;
-                    border-radius: 50%;
-                    width: 32px;
-                    height: 32px;
-                    display: flex;
-                    align-items: center;
-                    justify-content: center;
-                    cursor: pointer;
-                    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-                    transition: all 0.3s ease;
-                    z-index: 2;
-                    color: #555;
-                }
-                .offer-wishlist-btn:hover {
-                    transform: scale(1.1);
-                    color: #d32f2f;
-                }
-                .offer-wishlist-btn.active {
-                    color: #d32f2f;
-                }
-            `}</style>
-        </div>
+                    );
+                })}
+            </Slider>
+        </section>
     );
 };
 

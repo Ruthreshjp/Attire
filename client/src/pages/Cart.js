@@ -1,9 +1,10 @@
-import React, { useState, useContext } from 'react';
+import React, { useState, useContext, useEffect } from 'react';
 import Navbar from '../components/Navbar';
 import { useNavigate, Link } from 'react-router-dom';
 import { useCart } from '../context/CartContext';
 import { AuthContext } from '../context/AuthContext';
 import axios from 'axios';
+import './Cart.css';
 
 const Cart = () => {
     const navigate = useNavigate();
@@ -15,6 +16,7 @@ const Cart = () => {
     const [couponError, setCouponError] = useState('');
 
     const shipping = cartTotal > 2000 ? 0 : 150;
+    
     const handleApplyCoupon = () => {
         setCouponError('');
         const match = cartItems.find(item => item.couponCode && item.couponCode.toLowerCase() === couponCode.toLowerCase());
@@ -30,7 +32,6 @@ const Cart = () => {
 
     const discountAmount = cartItems.reduce((acc, item) => {
         if (appliedCoupon && item.couponCode && item.couponCode.toLowerCase() === appliedCoupon) {
-            // Use specialPrice difference if available, otherwise fallback to percentage
             if (item.specialPrice && item.specialPrice < item.price) {
                 return acc + ((item.price - item.specialPrice) * item.quantity);
             }
@@ -42,20 +43,17 @@ const Cart = () => {
 
     const total = cartTotal + shipping - discountAmount;
 
-    const [checkoutStep, setCheckoutStep] = useState('cart'); // 'cart', 'address', 'payment', 'success'
+    const [checkoutStep, setCheckoutStep] = useState('cart'); 
     const [addressHistory, setAddressHistory] = useState([]);
     const [address, setAddress] = useState({
         name: user?.name || '',
         street: '',
         city: '',
-        state: '',
         zipCode: '',
-        country: 'India',
         phone: ''
     });
 
-    // Fetch address history
-    React.useEffect(() => {
+    useEffect(() => {
         const fetchAddressHistory = async () => {
             if (isAuthenticated) {
                 try {
@@ -63,10 +61,9 @@ const Cart = () => {
                         headers: { 'x-auth-token': localStorage.getItem('token') }
                     });
                     if (res.data.success) {
-                        // Extract unique addresses from past orders
                         const addresses = res.data.orders.map(o => o.shippingAddress);
                         const uniqueAddresses = Array.from(new Set(addresses.map(a => JSON.stringify(a)))).map(s => JSON.parse(s));
-                        setAddressHistory(uniqueAddresses);
+                        setAddressHistory(uniqueAddresses.filter(a => a && a.street));
                     }
                 } catch (err) {
                     console.error('Error fetching address history:', err);
@@ -87,8 +84,8 @@ const Cart = () => {
 
     const handleConfirmAddress = (e) => {
         e.preventDefault();
-        if (!address.street || !address.city || !address.phone) {
-            alert('Please fill in the required address fields');
+        if (!address.street || !address.city || !address.phone || !address.zipCode) {
+            alert('Please fill in all required address fields');
             return;
         }
         setCheckoutStep('payment');
@@ -96,11 +93,7 @@ const Cart = () => {
 
     const handlePayment = async () => {
         try {
-            // Ensure amount is an integer and in correct format
             const sanitizedAmount = Math.round(total);
-            console.log('Initiating checkout for amount:', sanitizedAmount);
-
-            // 1. Create Razorpay order on backend
             const orderRes = await axios.post('http://localhost:5000/api/payment/create-order',
                 { amount: sanitizedAmount },
                 { headers: { 'x-auth-token': localStorage.getItem('token') } }
@@ -113,9 +106,8 @@ const Cart = () => {
 
             const { order } = orderRes.data;
 
-            // 2. Open Razorpay Popup
             const options = {
-                key: 'rzp_test_SPnkx43FsWVffJ', // Test Key
+                key: 'rzp_test_SPnkx43FsWVffJ', 
                 amount: order.amount,
                 currency: order.currency,
                 name: 'Attire Premium',
@@ -138,16 +130,12 @@ const Cart = () => {
                         }, { headers: { 'x-auth-token': localStorage.getItem('token') } });
 
                         if (verifyRes.data.success) {
-                            // Play success sound
-                            const audio = new Audio('https://assets.mixkit.co/active_storage/sfx/2013/2013-preview.mp3');
-                            audio.play().catch(e => console.log("Audio play failed", e));
-
+                            new Audio('https://assets.mixkit.co/active_storage/sfx/2013/2013-preview.mp3').play().catch(() => {});
                             setCheckoutStep('success');
                             clearCart();
                         }
                     } catch (err) {
-                        console.error('Verification error:', err);
-                        alert('Payment verification failed. Please contact support.');
+                        alert('Payment verification failed.');
                     }
                 },
                 prefill: {
@@ -155,23 +143,14 @@ const Cart = () => {
                     email: user?.email || '',
                     contact: address.phone
                 },
-                theme: {
-                    color: "#D4AF37" // Golden color to match theme
-                }
+                theme: { color: "#D4AF37" }
             };
 
             const rzp = new window.Razorpay(options);
-            rzp.on('payment.failed', function (response) {
-                alert('Payment failed: ' + response.error.description);
-            });
             rzp.open();
 
         } catch (err) {
-            console.error('Checkout error:', err);
-            const errMsg = err.response && err.response.data && err.response.data.message 
-                ? err.response.data.message 
-                : err.message;
-            alert('Failed to initiate payment. Please try again. Error: ' + errMsg);
+            alert('Failed to initiate payment.');
         }
     };
 
@@ -179,421 +158,231 @@ const Cart = () => {
         <div className="cart-page">
             <Navbar />
             <div className="cart-container">
-                <h1 className="cart-title">Your Cart ({cartItems.length} item{cartItems.length !== 1 ? 's' : ''})</h1>
+                {/* ── Checkout Progress Bar ── */}
+                {checkoutStep !== 'cart' && checkoutStep !== 'success' && (
+                    <div className="checkout-progress">
+                        <div className={`progress-step ${checkoutStep === 'address' ? 'active' : 'completed'}`} onClick={() => setCheckoutStep('cart')}>
+                            <span className="step-num">{checkoutStep === 'address' ? '1' : '✓'}</span>
+                            <span className="step-label">Cart</span>
+                        </div>
+                        <div className="progress-line" />
+                        <div className={`progress-step ${checkoutStep === 'address' ? 'active' : checkoutStep === 'payment' ? 'active' : 'completed'}`}>
+                            <span className="step-num">{checkoutStep === 'payment' ? '✓' : '2'}</span>
+                            <span className="step-label">Address</span>
+                        </div>
+                        <div className="progress-line" />
+                        <div className={`progress-step ${checkoutStep === 'payment' ? 'active' : ''}`}>
+                            <span className="step-num">3</span>
+                            <span className="step-label">Payment</span>
+                        </div>
+                    </div>
+                )}
+
+                <h1 className="cart-title">
+                    {checkoutStep === 'cart' ? `Your Cart (${cartItems.length})` : 
+                     checkoutStep === 'address' ? 'Shipping Details' : 
+                     checkoutStep === 'payment' ? 'Secure Checkout' : ''}
+                </h1>
 
                 {cartItems.length > 0 ? (
-                    <div className="cart-content">
-                        <div className="cart-items">
-                            {cartItems.map(item => (
-                                <div key={item.cartKey} className="cart-item">
-                                    <Link to={`/product/${item.id}`} className="cart-item-image">
-                                        <img src={item.image} alt={item.name} />
-                                    </Link>
-                                    <div className="cart-item-details">
-                                        <Link to={`/product/${item.id}`}>
-                                            <h3>{item.name}</h3>
-                                        </Link>
-                                        {(item.size || item.color) && (
-                                            <p className="cart-item-meta">
-                                                {item.size && `Size: ${item.size}`}
-                                                {item.size && item.color && ' | '}
-                                                {item.color && `Color: ${item.color}`}
-                                            </p>
-                                        )}
-                                        <div className="cart-item-price">₹{(item.price || 0).toLocaleString('en-IN')}</div>
-                                    </div>
-                                    <div className="cart-item-actions">
-                                        <div className="quantity-control">
-                                            <button onClick={() => updateQuantity(item.cartKey, -1)}>-</button>
-                                            <span>{item.quantity}</span>
-                                            <button onClick={() => updateQuantity(item.cartKey, 1)}>+</button>
+                    <div className={`cart-content ${checkoutStep !== 'cart' ? 'checkout-active' : ''}`}>
+                        <div className="cart-left-col">
+                            {checkoutStep === 'cart' ? (
+                                <div className="cart-items">
+                                    {cartItems.map(item => (
+                                        <div key={item.cartKey} className="cart-item">
+                                            <Link to={`/product/${item.id}`} className="cart-item-image">
+                                                <img src={item.image} alt={item.name} />
+                                            </Link>
+                                            <div className="cart-item-details">
+                                                <Link to={`/product/${item.id}`}>
+                                                    <h3>{item.name}</h3>
+                                                </Link>
+                                                {(item.size || item.color) && (
+                                                    <p className="cart-item-meta">
+                                                        {item.size && `Size: ${item.size}`}
+                                                        {item.size && item.color && ' | '}
+                                                        {item.color && `Color: ${item.color}`}
+                                                    </p>
+                                                )}
+                                                <div className="cart-item-price">₹{(item.price || 0).toLocaleString('en-IN')}</div>
+                                            </div>
+                                            <div className="cart-item-actions">
+                                                <div className="quantity-control">
+                                                    <button onClick={() => updateQuantity(item.cartKey, -1)}>-</button>
+                                                    <span>{item.quantity}</span>
+                                                    <button onClick={() => updateQuantity(item.cartKey, 1)}>+</button>
+                                                </div>
+                                                <button className="remove-item-btn" onClick={() => removeFromCart(item.cartKey)}>
+                                                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 6h18M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2M10 11v6M14 11v6"/></svg>
+                                                </button>
+                                            </div>
                                         </div>
-                                        <button
-                                            className="remove-item-btn"
-                                            onClick={() => removeFromCart(item.cartKey)}
-                                            title="Remove from cart"
-                                        >
-                                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                                                <polyline points="3 6 5 6 21 6"></polyline>
-                                                <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
-                                                <line x1="10" y1="11" x2="10" y2="17"></line>
-                                                <line x1="14" y1="11" x2="14" y2="17"></line>
-                                            </svg>
-                                        </button>
-                                    </div>
+                                    ))}
                                 </div>
-                            ))}
-                        </div>
-
-                        <div className="cart-summary">
-                            {checkoutStep === 'address' && (
-                                <div className="checkout-step">
-                                    <button className="back-to-cart" onClick={() => setCheckoutStep('cart')}>&larr; Back to Cart</button>
-                                    <h3>Shipping Address</h3>
-
+                            ) : checkoutStep === 'address' ? (
+                                <div className="checkout-address-section">
+                                    <h3 className="section-header">Where should we send your order?</h3>
+                                    
                                     {addressHistory.length > 0 && (
                                         <div className="address-history">
-                                            <p className="history-subtitle">Use a previous address:</p>
-                                            <div className="history-list">
+                                            <p className="history-subtitle">Previous Addresses</p>
+                                            <div className="history-grid">
                                                 {addressHistory.map((hist, idx) => (
-                                                    <div key={idx} className="history-item" onClick={() => setAddress(hist)}>
-                                                        <p><strong>{hist.name}</strong></p>
-                                                        <p className="hist-addr">{hist.street}, {hist.city}</p>
-                                                        <p className="hist-meta">{hist.zipCode}, {hist.phone}</p>
+                                                    <div key={idx} className={`history-card ${JSON.stringify(hist) === JSON.stringify(address) ? 'selected' : ''}`} onClick={() => setAddress(hist)}>
+                                                        <div className="card-select-icon">
+                                                            {JSON.stringify(hist) === JSON.stringify(address) && <span className="dot" />}
+                                                        </div>
+                                                        <div className="card-info">
+                                                            <p className="hist-name"><strong>{hist.name}</strong></p>
+                                                            <p className="hist-street">{hist.street}</p>
+                                                            <p className="hist-city">{hist.city}, {hist.zipCode}</p>
+                                                            <p className="hist-phone">{hist.phone}</p>
+                                                        </div>
                                                     </div>
                                                 ))}
                                             </div>
-                                            <div className="or-divider"><span>OR NEW ADDRESS</span></div>
+                                            <div className="new-address-prompt">
+                                                <span>Add a New Address</span>
+                                                <div className="line" />
+                                            </div>
                                         </div>
                                     )}
 
-                                    <form className="address-form" onSubmit={handleConfirmAddress}>
-                                        <div className="form-group">
-                                            <label>Full Name</label>
-                                            <input
-                                                type="text"
-                                                value={address.name}
-                                                onChange={(e) => setAddress({ ...address, name: e.target.value })}
-                                                required
-                                            />
+                                    <form className="address-form-fancy" onSubmit={handleConfirmAddress}>
+                                        <div className="form-group-fancy">
+                                            <input type="text" placeholder=" " id="addr-name" value={address.name} onChange={(e) => setAddress({ ...address, name: e.target.value })} required />
+                                            <label htmlFor="addr-name">Full Recipient Name</label>
                                         </div>
-                                        <div className="form-group">
-                                            <label>Street Address</label>
-                                            <input
-                                                type="text"
-                                                value={address.street}
-                                                onChange={(e) => setAddress({ ...address, street: e.target.value })}
-                                                required
-                                            />
+                                        <div className="form-group-fancy">
+                                            <input type="text" placeholder=" " id="addr-street" value={address.street} onChange={(e) => setAddress({ ...address, street: e.target.value })} required />
+                                            <label htmlFor="addr-street">Street, House No, Locality</label>
                                         </div>
-                                        <div className="form-row">
-                                            <div className="form-group">
-                                                <label>City</label>
-                                                <input
-                                                    type="text"
-                                                    value={address.city}
-                                                    onChange={(e) => setAddress({ ...address, city: e.target.value })}
-                                                    required
-                                                />
+                                        <div className="form-row-fancy">
+                                            <div className="form-group-fancy">
+                                                <input type="text" placeholder=" " id="addr-city" value={address.city} onChange={(e) => setAddress({ ...address, city: e.target.value })} required />
+                                                <label htmlFor="addr-city">City</label>
                                             </div>
-                                            <div className="form-group">
-                                                <label>Zip Code</label>
-                                                <input
-                                                    type="text"
-                                                    value={address.zipCode}
-                                                    onChange={(e) => setAddress({ ...address, zipCode: e.target.value })}
-                                                    required
-                                                />
+                                            <div className="form-group-fancy">
+                                                <input type="text" placeholder=" " id="addr-zip" value={address.zipCode} onChange={(e) => setAddress({ ...address, zipCode: e.target.value })} required />
+                                                <label htmlFor="addr-zip">Pincode</label>
                                             </div>
                                         </div>
-                                        <div className="form-group">
-                                            <label>Phone Number</label>
-                                            <input
-                                                type="tel"
-                                                value={address.phone}
-                                                onChange={(e) => setAddress({ ...address, phone: e.target.value })}
-                                                required
-                                            />
+                                        <div className="form-group-fancy">
+                                            <input type="tel" placeholder=" " id="addr-phone" value={address.phone} onChange={(e) => setAddress({ ...address, phone: e.target.value })} required />
+                                            <label htmlFor="addr-phone">Mobile Number</label>
                                         </div>
-                                        <button type="submit" className="checkout-btn">Continue to Payment</button>
+                                        <div className="checkout-btns-group">
+                                            <button type="button" className="back-btn" onClick={() => setCheckoutStep('cart')}>Modify Cart</button>
+                                            <button type="submit" className="continue-btn">Save & Proceed</button>
+                                        </div>
                                     </form>
                                 </div>
-                            )}
-
-                            {checkoutStep === 'payment' && (
-                                <div className="checkout-step">
-                                    <button className="back-to-cart" onClick={() => setCheckoutStep('address')}>&larr; Edit Address</button>
-                                    <h3>Order Summary</h3>
-                                    <div className="payment-summary-card">
-                                        <div className="p-section">
-                                            <label>DELIVER TO</label>
-                                            <p><strong>{address.name}</strong></p>
-                                            <p>{address.street}, {address.city}, {address.state} {address.zipCode}</p>
-                                            <p>{address.phone}</p>
-                                        </div>
-                                        <div className="p-divider"></div>
-                                        <div className="p-section">
-                                            <label>PAYMENT DETAILS</label>
-                                            <div className="p-row"><span>Subtotal</span><span>₹{cartTotal.toLocaleString()}</span></div>
-                                            <div className="p-row"><span>Shipping</span><span>{shipping === 0 ? 'Free' : `₹${shipping}`}</span></div>
-                                            <div className="p-row total"><span>Total Payable</span><span>₹{total.toLocaleString()}</span></div>
-                                        </div>
-                                    </div>
-                                    <button onClick={handlePayment} className="pay-now-btn">Pay with Razorpay</button>
-                                    <p className="secure-badge">🔒 Secure Payment via SSL & Razorpay</p>
-                                </div>
-                            )}
-
-                            {checkoutStep === 'success' && (
-                                <div className="success-overlay">
-                                    <div className="success-content">
-                                        <div className="golden-tick-wrapper">
-                                            <div className="golden-circle">
-                                                <svg viewBox="0 0 24 24" fill="none" stroke="#D4AF37" strokeWidth="3">
-                                                    <polyline points="20 6 9 17 4 12" />
-                                                </svg>
+                            ) : checkoutStep === 'payment' ? (
+                                <div className="checkout-payment-section">
+                                    <h3 className="section-header">Last Step: Payment Verification</h3>
+                                    
+                                    <div className="order-final-preview">
+                                        <div className="preview-card">
+                                            <div className="preview-header">
+                                                <h4>Shipping Summary</h4>
+                                                <button onClick={() => setCheckoutStep('address')}>Edit</button>
+                                            </div>
+                                            <div className="preview-body">
+                                                <p><strong>{address.name}</strong></p>
+                                                <p>{address.street}, {address.city}, {address.zipCode}</p>
+                                                <p>Contact: {address.phone}</p>
                                             </div>
                                         </div>
-                                        <h2>Thank You for Ordering!</h2>
-                                        <p>Your order has been received successfully.</p>
-                                        <button onClick={() => navigate('/my-orders')} className="view-orders-btn">Track My Order</button>
-                                        <button onClick={() => navigate('/products')} className="shop-more-btn">Shop More</button>
+                                        
+                                        <div className="preview-card">
+                                            <div className="preview-header">
+                                                <h4>Items ({cartItems.length})</h4>
+                                                <button onClick={() => setCheckoutStep('cart')}>Edit</button>
+                                            </div>
+                                            <div className="preview-items-mini">
+                                                {cartItems.map(item => (
+                                                    <div key={item.cartKey} className="item-mini">
+                                                        <img src={item.image} alt="" />
+                                                        <div className="item-mini-info">
+                                                            <p className="name">{item.name}</p>
+                                                            <p className="price">₹{item.price.toLocaleString()} x {item.quantity}</p>
+                                                        </div>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        </div>
                                     </div>
+                                    
+                                    <div className="payment-guarantee">
+                                        <div className="guarantee-icon">🛡️</div>
+                                        <div className="guarantee-text">
+                                            <p><strong>Secure Checkout Guaranteed</strong></p>
+                                            <p>Your transaction is encrypted with 256-bit SSL technology. Payment via Razorpay.</p>
+                                        </div>
+                                    </div>
+
+                                    <button onClick={handlePayment} className="finalize-payment-btn">
+                                        <div className="btn-shine" />
+                                        <span>Confirm Order & Pay ₹{total.toLocaleString()}</span>
+                                    </button>
                                 </div>
-                            )}
+                            ) : null}
+                        </div>
 
-                            {checkoutStep === 'cart' && (
-                                <>
-                                    <h2>Order Summary</h2>
-                                    <div className="summary-row">
-                                        <span>Subtotal</span>
-                                        <span>₹{cartTotal.toLocaleString('en-IN')}</span>
-                                    </div>
-                                    <div className="summary-row">
-                                        <span>Shipping</span>
-                                        <span>{shipping === 0 ? 'Free' : `₹${shipping.toLocaleString('en-IN')}`}</span>
-                                    </div>
-
+                        <div className="cart-summary-col">
+                            <div className="summary-card-premium">
+                                <h2>Order Summary</h2>
+                                <div className="summary-details">
+                                    <div className="summary-row"><span>Cart Value</span><span>₹{cartTotal.toLocaleString('en-IN')}</span></div>
+                                    <div className="summary-row"><span>Shipping</span><span className={shipping === 0 ? 'free' : ''}>{shipping === 0 ? 'FREE' : `₹${shipping.toLocaleString('en-IN')}`}</span></div>
                                     {appliedCoupon && (
-                                        <div className="summary-row discount">
-                                            <span>Discount ({appliedCoupon.toUpperCase()})</span>
-                                            <span>-₹{discountAmount.toLocaleString('en-IN')}</span>
+                                        <div className="summary-row discount"><span>Reward ({appliedCoupon.toUpperCase()})</span><span>-₹{discountAmount.toLocaleString('en-IN')}</span></div>
+                                    )}
+                                    {checkoutStep === 'cart' && (
+                                        <div className="promo-section-fancy">
+                                            <div className="promo-field">
+                                                <input type="text" placeholder="Promo Code" value={couponCode} onChange={(e) => setCouponCode(e.target.value)} />
+                                                <button onClick={handleApplyCoupon}>Apply</button>
+                                            </div>
+                                            {couponError && <p className="p-err">{couponError}</p>}
+                                            {appliedCoupon && <p className="p-succ">Coupon Applied!</p>}
                                         </div>
                                     )}
+                                </div>
 
-                                    <div className="promo-code-section">
-                                        <div className="promo-input-group">
-                                            <input
-                                                type="text"
-                                                placeholder="Enter promo code"
-                                                value={couponCode}
-                                                onChange={(e) => setCouponCode(e.target.value)}
-                                            />
-                                            <button onClick={handleApplyCoupon}>Apply</button>
-                                        </div>
-                                        {couponError && <p className="promo-error">{couponError}</p>}
-                                        {appliedCoupon && <p className="promo-success">Coupon "{appliedCoupon.toUpperCase()}" applied!</p>}
-                                    </div>
+                                <div className="summary-total-premium">
+                                    <div className="total-row"><span>Grand Total</span><span className="total-val">₹{total.toLocaleString('en-IN')}</span></div>
+                                    <p className="tax-incl">Inclusive of all taxes</p>
+                                </div>
 
-                                    <div className="summary-divider"></div>
-                                    <div className="summary-row total">
-                                        <span>Total</span>
-                                        <span>₹{total.toLocaleString('en-IN')}</span>
+                                {checkoutStep === 'cart' && (
+                                    <div className="cart-actions-sticky">
+                                        <button className="primary-checkout-btn" onClick={handleCheckout}>Checkout Now</button>
+                                        <button className="secondary-shop-btn" onClick={() => navigate('/products')}>Continue Browsing</button>
                                     </div>
-                                    <button className="checkout-btn" onClick={handleCheckout}>Proceed to Checkout</button>
-                                    <button className="continue-shopping-btn" onClick={() => navigate('/products')}>
-                                        Continue Shopping
-                                    </button>
-                                </>
-                            )}
+                                )}
+                            </div>
+                        </div>
+                    </div>
+                ) : checkoutStep === 'success' ? (
+                    <div className="order-success-canvas">
+                        <div className="success-circle"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><polyline points="20 6 9 17 4 12"/></svg></div>
+                        <h2 className="success-title">Order Placed Successfully!</h2>
+                        <p className="success-subtitle">A confirmation email has been sent.</p>
+                        <div className="success-actions">
+                            <button onClick={() => navigate('/my-orders')} className="track-order-btn">Track Order</button>
+                            <button onClick={() => navigate('/')} className="back-home-btn">Return Home</button>
                         </div>
                     </div>
                 ) : (
-                    <div className="empty-cart">
-                        <div className="empty-cart-icon">
-                            <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1">
-                                <circle cx="9" cy="21" r="1" />
-                                <circle cx="20" cy="21" r="1" />
-                                <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6" />
-                            </svg>
-                        </div>
-                        <h2>Your cart is empty</h2>
-                        <p>Looks like you haven't added anything to your cart yet.</p>
-                        <button className="start-shopping-btn" onClick={() => navigate('/products')}>
-                            Start Shopping
-                        </button>
+                    <div className="empty-cart-aesthetic">
+                        <div className="empty-visual"><svg width="100" height="100" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="0.5"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 002 1.61h9.72a2 2 0 002-1.61L23 6H6"/></svg></div>
+                        <h2>Your wardrobe is empty</h2>
+                        <button className="explore-btn" onClick={() => navigate('/products')}>Start Exploring</button>
                     </div>
                 )}
             </div>
-            <style>{`
-                .checkout-step {
-                    display: flex;
-                    flex-direction: column;
-                    gap: 20px;
-                }
-                .back-to-cart {
-                    background: none;
-                    border: none;
-                    color: #666;
-                    cursor: pointer;
-                    font-weight: 500;
-                    text-align: left;
-                    padding: 0;
-                    margin-bottom: 10px;
-                }
-                .address-form {
-                    display: flex;
-                    flex-direction: column;
-                    gap: 15px;
-                }
-                .form-group {
-                    display: flex;
-                    flex-direction: column;
-                    gap: 5px;
-                }
-                .form-group label {
-                    font-size: 0.85rem;
-                    color: #666;
-                    font-weight: 500;
-                }
-                .form-group input {
-                    padding: 10px;
-                    border: 1px solid #ddd;
-                    border-radius: 6px;
-                    font-size: 0.95rem;
-                }
-                .form-row {
-                    display: grid;
-                    grid-template-columns: 1fr 1fr;
-                    gap: 15px;
-                }
-                .checkout-final-summary {
-                    margin-top: 20px;
-                    background: #f9f9f9;
-                    padding: 15px;
-                    border-radius: 8px;
-                }
-                .pay-now-btn {
-                    width: 100%;
-                    background: #1a1a1a;
-                    color: white;
-                    border: none;
-                    padding: 12px;
-                    border-radius: 8px;
-                    font-weight: 600;
-                    margin-top: 15px;
-                    cursor: pointer;
-                    transition: background 0.2s;
-                }
-                .pay-now-btn:hover {
-                    background: #333;
-                }
-                .address-history {
-                    margin-bottom: 25px;
-                    background: #fdfdfd;
-                    padding: 15px;
-                    border-radius: 10px;
-                    border: 1px dashed #ddd;
-                }
-                .history-subtitle {
-                    font-size: 0.8rem;
-                    color: #888;
-                    margin-bottom: 10px;
-                    font-weight: 600;
-                    text-transform: uppercase;
-                }
-                .history-list {
-                    display: flex;
-                    flex-direction: column;
-                    gap: 10px;
-                }
-                .history-item {
-                    padding: 12px;
-                    border: 1px solid #eee;
-                    border-radius: 8px;
-                    cursor: pointer;
-                    transition: all 0.2s;
-                    background: white;
-                }
-                .history-item:hover {
-                    border-color: #D4AF37;
-                    box-shadow: 0 4px 12px rgba(212, 175, 55, 0.1);
-                }
-                .hist-addr { font-size: 0.9rem; color: #555; margin: 3px 0; }
-                .hist-meta { font-size: 0.85rem; color: #888; }
-                .or-divider {
-                    text-align: center;
-                    margin: 15px 0;
-                    position: relative;
-                }
-                .or-divider::before {
-                    content: "";
-                    position: absolute;
-                    top: 50%;
-                    left: 0;
-                    right: 0;
-                    height: 1px;
-                    background: #eee;
-                }
-                .or-divider span {
-                    background: #fdfdfd;
-                    padding: 0 10px;
-                    font-size: 0.75rem;
-                    color: #999;
-                    position: relative;
-                    font-weight: 700;
-                }
-                .payment-summary-card {
-                    background: #fafafa;
-                    border-radius: 12px;
-                    border: 1px solid #eee;
-                    overflow: hidden;
-                }
-                .p-section { padding: 15px; }
-                .p-section label { font-size: 0.7rem; color: #999; font-weight: 700; display: block; margin-bottom: 8px; }
-                .p-section p { font-size: 0.9rem; color: #333; line-height: 1.4; }
-                .p-divider { height: 1px; background: #eee; margin: 0 15px; }
-                .p-row { display: flex; justify-content: space-between; font-size: 0.9rem; margin-bottom: 5px; color: #555; }
-                .p-row.total { font-weight: 700; color: #1a1a1a; margin-top: 10px; font-size: 1rem; }
-                .secure-badge { text-align: center; font-size: 0.75rem; color: #2e7d32; margin-top: 15px; font-weight: 600; }
-                
-                /* Success View */
-                .success-overlay {
-                    text-align: center;
-                    padding: 20px 0;
-                }
-                .golden-tick-wrapper {
-                    display: flex;
-                    justify-content: center;
-                    margin-bottom: 20px;
-                }
-                .golden-circle {
-                    width: 100px;
-                    height: 100px;
-                    border-radius: 50%;
-                    background: #fffdf2;
-                    border: 4px solid #D4AF37;
-                    display: flex;
-                    align-items: center;
-                    justify-content: center;
-                    animation: circleScale 0.6s ease-out;
-                }
-                .golden-circle svg {
-                    width: 50px;
-                    height: 50px;
-                    animation: tickDraw 0.5s 0.3s both;
-                }
-                @keyframes circleScale {
-                    0% { transform: scale(0); }
-                    80% { transform: scale(1.1); }
-                    100% { transform: scale(1); }
-                }
-                @keyframes tickDraw {
-                    from { opacity: 0; transform: translateY(10px); }
-                    to { opacity: 1; transform: translateY(0); }
-                }
-                .success-content h2 { color: #1a1a1a; margin-bottom: 10px; }
-                .success-msg { color: #666; font-size: 0.9rem; margin-bottom: 30px; }
-                .success-actions { display: flex; flex-direction: column; gap: 12px; }
-                .view-orders-btn {
-                    background: #D4AF37;
-                    color: white;
-                    border: none;
-                    padding: 12px;
-                    border-radius: 8px;
-                    font-weight: 700;
-                    cursor: pointer;
-                }
-                .shop-more-btn {
-                    background: white;
-                    color: #1a1a1a;
-                    border: 1px solid #1a1a1a;
-                    padding: 12px;
-                    border-radius: 8px;
-                    font-weight: 600;
-                    cursor: pointer;
-                }
-            `}</style>
         </div>
     );
 };

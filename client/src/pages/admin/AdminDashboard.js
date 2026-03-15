@@ -12,17 +12,19 @@ import {
     Legend,
     ResponsiveContainer,
     LineChart,
-    Line
+    Line,
+    AreaChart,
+    Area
 } from 'recharts';
 
 const AdminDashboard = () => {
     const [rawData, setRawData] = useState({ products: [], users: [], orders: [] });
     const [loading, setLoading] = useState(true);
-    
-    const [timeframe, setTimeframe] = useState('month'); 
-    const [activeTab, setActiveTab] = useState('sales'); 
-    const [showGraph, setShowGraph] = useState(false);
-    const [selectedCategory, setSelectedCategory] = useState(null);
+    const [timeframe, setTimeframe] = useState('month');
+    const [activeTab, setActiveTab] = useState('sales'); // sales, orders, users, transactions, refunds
+    const [subFilter, setSubFilter] = useState('all'); // all, confirmed, cancelled
+    const [selectedRefundOrder, setSelectedRefundOrder] = useState(null);
+    const [updatingRefund, setUpdatingRefund] = useState(false);
 
     useEffect(() => {
         const fetchDashboardData = async () => {
@@ -51,12 +53,12 @@ const AdminDashboard = () => {
         const now = new Date();
         const checkDate = new Date(date);
         
-        now.setHours(0,0,0,0);
         const diffMs = now.getTime() - checkDate.getTime();
-        const diffDays = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
-        
+        const diffHours = diffMs / (1000 * 60 * 60);
+        const diffDays = diffMs / (1000 * 60 * 60 * 24);
+
         switch (tf) {
-            case 'day': return diffDays <= 1; // Today
+            case 'day': return diffHours <= 24;
             case 'week': return diffDays <= 7;
             case 'month': return diffDays <= 30;
             case 'year': return diffDays <= 365;
@@ -66,46 +68,60 @@ const AdminDashboard = () => {
 
     const periodOrders = rawData.orders.filter(o => filterByTimeframe(o.createdAt, timeframe));
     const paidOrders = periodOrders.filter(o => o.paymentStatus === 'paid');
+    const confirmedOrders = periodOrders.filter(o => o.orderStatus !== 'cancelled');
+    const cancelledOrders = periodOrders.filter(o => o.orderStatus === 'cancelled');
+    const pendingRefunds = cancelledOrders.filter(o => o.refundDetails?.refundStatus === 'initiated' || o.refundDetails?.refundStatus === 'none' || !o.refundDetails?.refundStatus);
     
     const totalSales = paidOrders.reduce((acc, curr) => acc + curr.total, 0);
     const periodUsers = rawData.users.filter(u => filterByTimeframe(u.createdAt, timeframe));
 
     const generateGraphData = () => {
         const dataMap = {};
-        
         let formatKey;
-        if (timeframe === 'day') {
-            formatKey = (d) => new Date(d).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-        } else if (timeframe === 'week' || timeframe === 'month') {
-            formatKey = (d) => new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+        if (timeframe === 'day') formatKey = (d) => new Date(d).toLocaleTimeString([], { hour: '2-digit' });
+        else if (timeframe === 'week' || timeframe === 'month') formatKey = (d) => new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+        else formatKey = (d) => new Date(d).toLocaleDateString('en-US', { month: 'short' });
+
+        let source = [];
+        if (activeTab === 'users') {
+            source = periodUsers;
+        } else if (activeTab === 'refunds') {
+            source = cancelledOrders;
         } else {
-            formatKey = (d) => new Date(d).toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
+            if (subFilter === 'confirmed') source = confirmedOrders;
+            else if (subFilter === 'cancelled') source = cancelledOrders;
+            else source = periodOrders;
         }
 
-        // Initialize missing days if needed? Simple map approach for now
-        periodOrders.sort((a,b) => new Date(a.createdAt) - new Date(b.createdAt)).forEach(o => {
-            const key = formatKey(o.createdAt);
-            if (!dataMap[key]) {
-                dataMap[key] = { name: key, sales: 0, orders: 0, refunds: 0, balance: 0 };
-            }
-            dataMap[key].orders += 1;
-            if (o.paymentStatus === 'paid') {
-                dataMap[key].sales += o.total;
-                dataMap[key].balance += o.total;
-            }
-            if (o.orderStatus === 'cancelled' && o.refundDetails) {
-                const refAmount = o.refundDetails.refundAmount || 0;
-                dataMap[key].refunds += refAmount;
-                dataMap[key].balance -= refAmount;
+        source.sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt)).forEach(item => {
+            const key = formatKey(item.createdAt);
+            if (!dataMap[key]) dataMap[key] = { name: key, sales: 0, orders: 0, users: 0, net: 0, refunds: 0 };
+            
+            if (activeTab === 'users') {
+                dataMap[key].users += 1;
+            } else if (activeTab === 'refunds') {
+                dataMap[key].refunds += item.refundDetails?.refundAmount || 0;
+            } else {
+                dataMap[key].orders += 1;
+                if (item.paymentStatus === 'paid') {
+                    dataMap[key].sales += item.total;
+                    dataMap[key].net += item.total;
+                }
+                if (item.orderStatus === 'cancelled' && item.refundDetails) {
+                    dataMap[key].net -= (item.refundDetails.refundAmount || 0);
+                }
             }
         });
-
-        return Object.values(dataMap);
+        const finalData = Object.values(dataMap);
+        // Fallback for single data point to make it visible in AreaChart
+        if (finalData.length === 1) {
+            return [{ ...finalData[0], name: 'Start' }, finalData[0]];
+        }
+        return finalData;
     };
 
     const graphData = generateGraphData();
 
-    // category logic
     const categoryMap = {};
     rawData.products.forEach(p => {
         const cat = p.category || 'Uncategorized';
@@ -113,403 +129,298 @@ const AdminDashboard = () => {
     });
     const categoriesList = Object.keys(categoryMap).map(k => ({ category: k, count: categoryMap[k] }));
 
-    // User Last Purchase map
-    const userLastPurchaseMap = {};
-    rawData.orders.forEach(o => {
-        if (o.user && o.user._id) {
-            const uid = o.user._id;
-            const d = new Date(o.createdAt);
-            if (!userLastPurchaseMap[uid] || new Date(userLastPurchaseMap[uid]) < d) {
-                userLastPurchaseMap[uid] = o.createdAt;
+    const handleUpdateRefundStatus = async (orderId, status) => {
+        setUpdatingRefund(true);
+        try {
+            const res = await axios.put(`http://localhost:5000/api/admin/orders/${orderId}/refund`, { status }, {
+                headers: { 'x-auth-token': localStorage.getItem('token') }
+            });
+            if (res.data.success) {
+                alert(`Refund status updated to ${status}. Note: ₹50 cancellation fee applied.`);
+                // Refresh dashboard data
+                const resData = await axios.get('http://localhost:5000/api/admin/dashboard', {
+                    headers: { 'x-auth-token': localStorage.getItem('token') }
+                });
+                if (resData.data.success) {
+                    setRawData({
+                        products: resData.data.products || [],
+                        users: resData.data.users || [],
+                        orders: resData.data.orders || []
+                    });
+                }
+                setSelectedRefundOrder(null);
             }
+        } catch (err) {
+            alert(err.response?.data?.message || 'Error processing refund');
+        } finally {
+            setUpdatingRefund(false);
         }
-    });
+    };
 
-    const renderGraph = () => {
-        if (!showGraph || graphData.length === 0) return null;
+    const renderChart = () => {
+        const dataKey = activeTab === 'sales' ? 'sales' : 
+                          activeTab === 'orders' ? 'orders' : 
+                          activeTab === 'users' ? 'users' : 
+                          activeTab === 'refunds' ? 'refunds' : 'net';
         
+        const chartColor = activeTab === 'sales' ? '#c5a059' : 
+                           activeTab === 'orders' ? '#000' : 
+                           activeTab === 'users' ? '#4f46e5' : 
+                           activeTab === 'refunds' ? '#f43f5e' : '#16a34a';
+
         return (
-            <div className="graph-container">
-                <h3 className="graph-title">Statistics ({timeframe})</h3>
-                <ResponsiveContainer width="100%" height={300}>
-                    {activeTab === 'sales' ? (
-                        <LineChart data={graphData}>
-                            <CartesianGrid strokeDasharray="3 3" />
-                            <XAxis dataKey="name" />
-                            <YAxis />
-                            <Tooltip formatter={(value) => `₹${value.toLocaleString()}`} />
-                            <Legend />
-                            <Line type="monotone" dataKey="sales" stroke="#D4AF37" activeDot={{ r: 8 }} name="Sales Content" />
-                        </LineChart>
-                    ) : activeTab === 'transactions' ? (
-                        <LineChart data={graphData}>
-                            <CartesianGrid strokeDasharray="3 3" />
-                            <XAxis dataKey="name" />
-                            <YAxis />
-                            <Tooltip formatter={(value) => `₹${value.toLocaleString()}`} />
-                            <Legend />
-                            <Line type="monotone" dataKey="sales" stroke="#16a34a" activeDot={{ r: 8 }} name="Gross Sales" />
-                            <Line type="monotone" dataKey="refunds" stroke="#dc2626" activeDot={{ r: 8 }} name="Refunds" />
-                            <Line type="monotone" dataKey="balance" stroke="#4338ca" activeDot={{ r: 8 }} name="Net Balance" />
-                        </LineChart>
-                    ) : (
-                        <BarChart data={graphData}>
-                            <CartesianGrid strokeDasharray="3 3" />
-                            <XAxis dataKey="name" />
-                            <YAxis allowDecimals={false} />
-                            <Tooltip />
-                            <Legend />
-                            <Bar dataKey="orders" fill="#1a1a1a" name="Total Orders" />
-                        </BarChart>
-                    )}
+            <div className="analytics-vessel">
+                <ResponsiveContainer width="100%" height={380}>
+                    <AreaChart data={graphData}>
+                        <defs>
+                            <linearGradient id="colorValue" x1="0" y1="0" x2="0" y2="1">
+                                <stop offset="5%" stopColor={chartColor} stopOpacity={0.3} />
+                                <stop offset="95%" stopColor={chartColor} stopOpacity={0} />
+                            </linearGradient>
+                        </defs>
+                        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#eee" />
+                        <XAxis dataKey="name" axisLine={false} tickLine={false} />
+                        <YAxis axisLine={false} tickLine={false} tickFormatter={(v) => activeTab.includes('sales') || activeTab === 'net' ? `₹${v}` : v} />
+                        <Tooltip
+                            contentStyle={{ background: '#000', border: 'none', borderRadius: '8px' }}
+                            itemStyle={{ color: '#fff' }}
+                            formatter={(value) => [activeTab.includes('sales') || activeTab === 'net' ? `₹${value.toLocaleString()}` : value, activeTab.toUpperCase()]}
+                        />
+                        <Area type="monotone" dataKey={dataKey} stroke={chartColor} strokeWidth={3} fillOpacity={1} fill="url(#colorValue)" />
+                    </AreaChart>
                 </ResponsiveContainer>
             </div>
         );
     };
 
-    const renderSalesView = () => (
-        <div className="tab-view-content">
-            <h2 className="view-title">Sales Data ({timeframe})</h2>
-            <div className="aggregate-highlight">
-                <span className="agg-label">Total Sum:</span>
-                <span className="agg-value text-gold">₹{totalSales.toLocaleString()}</span>
-            </div>
-            <button className="view-stats-btn" onClick={() => setShowGraph(!showGraph)}>
-                {showGraph ? 'Hide Statistics' : 'View Statistics Graph'}
-            </button>
-            {renderGraph()}
-        </div>
-    );
+    const renderOrdersTable = () => {
+        let tableSource = [];
+        if (activeTab === 'refunds') {
+            tableSource = cancelledOrders;
+        } else if (activeTab === 'users') {
+            return (
+                <div className="luxury-table-wrapper">
+                    <table className="luxury-table">
+                        <thead>
+                            <tr><th>Identity</th><th>Onboarding</th><th>Orders</th></tr>
+                        </thead>
+                        <tbody>
+                            {periodUsers.slice(0, 10).map(u => (
+                                <tr key={u._id}>
+                                    <td><div className="client-info"><strong>{u.name}</strong><span>{u.email}</span></div></td>
+                                    <td>{new Date(u.createdAt).toLocaleDateString()}</td>
+                                    <td>{rawData.orders.filter(o => o.user?._id === u._id).length} units</td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
+                </div>
+            );
+        } else {
+            if (subFilter === 'confirmed') tableSource = confirmedOrders;
+            else if (subFilter === 'cancelled') tableSource = cancelledOrders;
+            else tableSource = periodOrders;
+        }
 
-    const renderOrdersView = () => (
-        <div className="tab-view-content">
-            <h2 className="view-title">Orders Data ({timeframe})</h2>
-            <div className="aggregate-highlight">
-                <span className="agg-label">Total Orders:</span>
-                <span className="agg-value">{periodOrders.length}</span>
-            </div>
-            <button className="view-stats-btn" onClick={() => setShowGraph(!showGraph)}>
-                {showGraph ? 'Hide Statistics' : 'View Statistics Graph'}
-            </button>
-            {renderGraph()}
-
-            <div className="table-responsive">
-                <table className="admin-table mt-4">
+        return (
+            <div className="luxury-table-wrapper">
+                <table className="luxury-table">
                     <thead>
                         <tr>
-                            <th>Order ID</th>
-                            <th>Customer</th>
-                            <th>Amount</th>
-                            <th>Details</th>
-                            <th>Date</th>
+                            <th>Identity</th>
+                            <th>Client</th>
+                            <th>Investment</th>
                             <th>Status</th>
+                            <th>Timeline</th>
+                            {activeTab === 'refunds' && <th>Action</th>}
                         </tr>
                     </thead>
                     <tbody>
-                        {periodOrders.map(order => (
+                        {tableSource.slice(0, 8).map(order => (
                             <tr key={order._id}>
-                                <td>{order.orderNumber}</td>
-                                <td>{order.user ? order.user.name : order.shippingAddress?.name}</td>
-                                <td>₹{order.total.toLocaleString()}</td>
+                                <td><span className="order-tag">#{order.orderNumber}</span></td>
                                 <td>
-                                    <div className="order-item-detail">
-                                        {order.items.map((it, idx) => (
-                                            <div key={idx} className="small-text text-muted">
-                                                {it.name} (Q: {it.quantity})
-                                            </div>
-                                        ))}
-                                        <div className="pay-method-badge">{order.paymentMethod}</div>
+                                    <div className="client-info">
+                                        <strong>{order.user?.name || order.shippingAddress?.name}</strong>
+                                        <span>{order.paymentMethod}</span>
                                     </div>
                                 </td>
+                                <td>₹{order.total.toLocaleString()}</td>
+                                <td><span className={`pill ${order.orderStatus.toLowerCase()}`}>{order.orderStatus}</span></td>
                                 <td>{new Date(order.createdAt).toLocaleDateString()}</td>
-                                <td><span className={`status-badge ${order.orderStatus.toLowerCase()}`}>{order.orderStatus}</span></td>
+                                {activeTab === 'refunds' && (
+                                    <td>
+                                        <button 
+                                            className="refund-trigger-btn" 
+                                            onClick={() => setSelectedRefundOrder(order)}
+                                            disabled={order.refundDetails?.refundStatus === 'processed'}
+                                        >
+                                            {order.refundDetails?.refundStatus === 'processed' ? 'Refunded' : 'Curate Clearing'}
+                                        </button>
+                                    </td>
+                                )}
                             </tr>
                         ))}
                     </tbody>
                 </table>
             </div>
-        </div>
-    );
-
-    const renderProductsView = () => (
-        <div className="tab-view-content">
-            <h2 className="view-title">
-                {selectedCategory ? `Products in ${selectedCategory.toUpperCase()}` : 'Product Categories & Inventory'}
-            </h2>
-            
-            {selectedCategory ? (
-                <>
-                    <button className="view-stats-btn" onClick={() => setSelectedCategory(null)}>
-                        &larr; Back to Categories
-                    </button>
-                    <div className="table-responsive">
-                        <table className="admin-table">
-                            <thead>
-                                <tr>
-                                    <th>Product Name</th>
-                                    <th>Category</th>
-                                    <th>Status</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {rawData.products.filter(p => (p.category || 'Uncategorized') === selectedCategory).map(product => (
-                                    <tr key={product._id}>
-                                        <td><strong>{product.title}</strong></td>
-                                        <td>{product.category}</td>
-                                        <td>Available</td>
-                                    </tr>
-                                ))}
-                            </tbody>
-                        </table>
-                    </div>
-                </>
-            ) : (
-                <div className="categories-grid">
-                    {categoriesList.map((cat, idx) => (
-                        <div key={idx} className="category-stat-card clickable" onClick={() => setSelectedCategory(cat.category)}>
-                            <h3>{cat.category.toUpperCase()}</h3>
-                            <p>{cat.count} Items Available</p>
-                        </div>
-                    ))}
-                </div>
-            )}
-        </div>
-    );
-
-    const renderUsersView = () => (
-        <div className="tab-view-content">
-            <h2 className="view-title">User Analytics ({timeframe})</h2>
-            <div className="aggregate-highlight">
-                <span className="agg-label">New Users:</span>
-                <span className="agg-value">{periodUsers.length}</span>
-            </div>
-
-            <div className="table-responsive">
-                <table className="admin-table mt-4">
-                    <thead>
-                        <tr>
-                            <th>User Name</th>
-                            <th>Email</th>
-                            <th>Joining Date</th>
-                            <th>Last Login Date</th>
-                            <th>Last Purchase</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {rawData.users.map(user => {
-                            const lastPur = userLastPurchaseMap[user._id];
-                            return (
-                                <tr key={user._id}>
-                                    <td><strong>{user.name}</strong></td>
-                                    <td>{user.email}</td>
-                                    <td>{new Date(user.createdAt).toLocaleDateString()}</td>
-                                    <td>{user.lastLogin ? new Date(user.lastLogin).toLocaleDateString() : 'N/A'}</td>
-                                    <td>{lastPur ? new Date(lastPur).toLocaleDateString() : 'N/A'}</td>
-                                </tr>
-                            )
-                        })}
-                    </tbody>
-                </table>
-            </div>
-        </div>
-    );
-
-    const handleGiveRefund = async (orderId) => {
-        try {
-            const res = await axios.put(`http://localhost:5000/api/admin/orders/${orderId}/refund`, {}, {
-                headers: { 'x-auth-token': localStorage.getItem('token') }
-            });
-            if (res.data.success) {
-                alert('Refund processed successfully');
-                const newOrders = rawData.orders.map(o => o._id === orderId ? res.data.order : o);
-                setRawData({ ...rawData, orders: newOrders });
-            }
-        } catch(err) {
-            alert(err.response?.data?.message || 'Error processing refund');
-        }
-    };
-
-    const renderRefundsView = () => {
-        const cancelledOrders = periodOrders.filter(o => o.orderStatus === 'cancelled' && o.refundDetails);
-        return (
-            <div className="tab-view-content">
-                <h2 className="view-title">Refund Management ({timeframe})</h2>
-                <div className="table-responsive">
-                    <table className="admin-table">
-                        <thead>
-                            <tr>
-                                <th>Order ID</th>
-                                <th>Account Name</th>
-                                <th>Acc. Number</th>
-                                <th>IFSC Code</th>
-                                <th>Refund Amount</th>
-                                <th>Status</th>
-                                <th>Action</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {cancelledOrders.map(order => (
-                                <tr key={order._id}>
-                                    <td>{order.orderNumber}</td>
-                                    <td>{order.refundDetails.accountName}</td>
-                                    <td>{order.refundDetails.accountNumber}</td>
-                                    <td>{order.refundDetails.ifscCode}</td>
-                                    <td><strong className="text-red-500">₹{order.refundDetails.refundAmount}</strong></td>
-                                    <td><span className={`status-badge ${order.refundDetails.refundStatus === 'processed' ? 'delivered' : 'pending'}`}>{order.refundDetails.refundStatus}</span></td>
-                                    <td>
-                                        {order.refundDetails.refundStatus !== 'processed' ? (
-                                            <button 
-                                                className="view-order-btn" 
-                                                style={{background:'#d97706'}}
-                                                onClick={() => handleGiveRefund(order._id)}
-                                            >
-                                                Give Refund
-                                            </button>
-                                        ) : (
-                                            <span style={{color:'green', fontWeight:'bold'}}>Transferred</span>
-                                        )}
-                                    </td>
-                                </tr>
-                            ))}
-                            {cancelledOrders.length === 0 && (
-                                <tr>
-                                    <td colSpan="7" style={{textAlign:'center', padding:'20px'}}>No cancellation refund requests in this period.</td>
-                                </tr>
-                            )}
-                        </tbody>
-                    </table>
-                </div>
-            </div>
         );
     };
 
-    const renderTransactionsView = () => {
-        const totalRefunds = periodOrders.filter(o => o.orderStatus === 'cancelled' && o.refundDetails).reduce((acc, curr) => acc + (curr.refundDetails.refundAmount || 0), 0);
-        const balancedAmount = totalSales - totalRefunds;
-        
-        return (
-            <div className="tab-view-content">
-                <h2 className="view-title">Transaction Analysis ({timeframe})</h2>
-                <button className="view-stats-btn" onClick={() => setShowGraph(!showGraph)}>
-                    {showGraph ? 'Hide Statistics' : 'View Statistics Graph'}
-                </button>
-                {renderGraph()}
-                
-                <div className="stats-grid" style={{gridTemplateColumns:'repeat(3, 1fr)', marginBottom:'0'}}>
-                    <div className="stat-card">
-                        <div className="stat-info">
-                            <h3 style={{color:'#16a34a'}}>Gross Orders Sales</h3>
-                            <p className="stat-value">₹{totalSales.toLocaleString()}</p>
-                        </div>
-                    </div>
-                    <div className="stat-card">
-                        <div className="stat-info">
-                            <h3 style={{color:'#dc2626'}}>Total Refunds Processed</h3>
-                            <p className="stat-value">₹{totalRefunds.toLocaleString()}</p>
-                            <p className="text-xs text-gray-500">After Rs. 50 reduction</p>
-                        </div>
-                    </div>
-                    <div className="stat-card" style={{borderColor: balancedAmount >= 0 ? '#16a34a' : '#dc2626'}}>
-                        <div className="stat-info">
-                            <h3 style={{color:'#4338ca'}}>Remaining Balance Amount</h3>
-                            <p className="stat-value" style={{color: balancedAmount >= 0 ? '#16a34a' : '#dc2626'}}>
-                                ₹{balancedAmount.toLocaleString()}
-                            </p>
-                        </div>
-                    </div>
-                </div>
+    if (loading) return (
+        <div className="premium-admin-canvas">
+            <AdminSidebar />
+            <div className="admin-loading">
+                <div className="luxury-spinner"></div>
+                <p>Curating Dashboard...</p>
             </div>
-        );
-    };
-
-    if (loading) return <div className="admin-layout"><AdminSidebar /><main className="admin-main">Loading Data...</main></div>;
+        </div>
+    );
 
     return (
-        <div className="admin-layout">
+        <div className="premium-admin-canvas">
             <AdminSidebar />
-            <main className="admin-main">
-                <header className="admin-header">
-                    <div>
-                        <h1>Dashboard Detailed Analytics</h1>
-                        <p className="admin-subtitle">Aggregated system intelligence</p>
+            <main className="admin-viewport">
+                <header className="viewport-header">
+                    <div className="title-stack">
+                        <h1>Intelligence Center</h1>
+                        <p>Enterprise Management Dashboard</p>
                     </div>
-                    
-                    <div className="timeframe-selector">
-                        <label>Statistics Period: </label>
-                        <select value={timeframe} onChange={(e) => setTimeframe(e.target.value)}>
-                            <option value="day">Day-wise</option>
-                            <option value="week">Week-wise</option>
-                            <option value="month">Month-wise</option>
-                            <option value="year">Year-wise</option>
-                        </select>
+                    <div className="header-actions">
+                        <div className="time-pill">
+                            <span>Period:</span>
+                            <select value={timeframe} onChange={(e) => setTimeframe(e.target.value)}>
+                                <option value="day">Last 24 Hours</option>
+                                <option value="week">Weekly View</option>
+                                <option value="month">Monthly Cycle</option>
+                                <option value="year">Fiscal Year</option>
+                            </select>
+                        </div>
                     </div>
                 </header>
 
-                <div className="stats-grid">
-                    <div className={`stat-card ${activeTab === 'sales' ? 'active-stat' : ''}`} onClick={() => { setActiveTab('sales'); setShowGraph(false); }}>
-                        <div className="stat-icon sales">💰</div>
-                        <div className="stat-info">
-                            <h3>Total Sales</h3>
-                            <p className="stat-value text-gold">₹{totalSales.toLocaleString()}</p>
-                            <p className="stat-meta">Filter applies: {timeframe}</p>
+                <div className="kpi-grid">
+                    <div className={`kpi-card ${activeTab === 'sales' ? 'active' : ''}`} onClick={() => { setActiveTab('sales'); setSubFilter('all'); }}>
+                        <span className="kpi-label">Gross Revenue</span>
+                        <h2 className="kpi-value">₹{totalSales.toLocaleString()}</h2>
+                        <div className="kpi-meta">Capital Intake</div>
+                    </div>
+                    <div className={`kpi-card ${activeTab === 'orders' ? 'active' : ''}`} onClick={() => { setActiveTab('orders'); setSubFilter('all'); }}>
+                        <span className="kpi-label">Order Volume</span>
+                        <h2 className="kpi-value">{periodOrders.length}</h2>
+                        <div className="kpi-meta">{paidOrders.length} verified</div>
+                    </div>
+                    <div className={`kpi-card ${activeTab === 'users' ? 'active' : ''}`} onClick={() => { setActiveTab('users'); setSubFilter('all'); }}>
+                        <span className="kpi-label">New Audiences</span>
+                        <h2 className="kpi-value">{periodUsers.length}</h2>
+                        <div className="kpi-meta">Onboarding count</div>
+                    </div>
+                    <div className={`kpi-card ${activeTab === 'refunds' ? 'active' : ''}`} onClick={() => { setActiveTab('refunds'); setSubFilter('all'); }}>
+                        <span className="kpi-label">Refund Clearing</span>
+                        <h2 className="kpi-value danger">{pendingRefunds.length}</h2>
+                        <div className="kpi-meta text-danger">Action Required</div>
+                    </div>
+                    <div className={`kpi-card ${activeTab === 'transactions' ? 'active' : ''}`} onClick={() => { setActiveTab('transactions'); setSubFilter('all'); }}>
+                        <span className="kpi-label">Net Liquidity</span>
+                        <h2 className="kpi-value gold">₹{(totalSales - cancelledOrders.reduce((a, c) => a + (c.refundDetails?.refundAmount || 0), 0)).toLocaleString()}</h2>
+                        <div className="kpi-meta text-gold">Post-reduction</div>
+                    </div>
+                </div>
+
+                <div className="business-intelligence-panel anim from-top">
+                    <div className="intelligence-grid">
+                        <div className="intel-node">
+                            <span className="node-label">Gross Capital</span>
+                            <strong className="node-val">₹{totalSales.toLocaleString()}</strong>
+                        </div>
+                        <div className="intel-node">
+                            <span className="node-label">Refunds Initiated</span>
+                            <strong className="node-val text-danger">₹{cancelledOrders.reduce((a, c) => a + (c.refundDetails?.refundAmount || 0), 0).toLocaleString()}</strong>
+                        </div>
+                        <div className="intel-node">
+                            <span className="node-label">Profitability Index</span>
+                            <strong className="node-val gold">₹{(totalSales - cancelledOrders.reduce((a, c) => a + (c.refundDetails?.refundAmount || 0), 0)).toLocaleString()}</strong>
                         </div>
                     </div>
+                </div>
+
+                <div className="dashboard-layout-grid">
+                    <section className="chart-section">
+                        <div className="panel-header">
+                            <div className="tab-context">
+                                <h3>{activeTab.toUpperCase()} Analysis</h3>
+                                {activeTab !== 'users' && activeTab !== 'refunds' && (
+                                    <div className="sub-filter-strip">
+                                        <button className={subFilter === 'all' ? 'active' : ''} onClick={() => setSubFilter('all')}>All</button>
+                                        <button className={subFilter === 'confirmed' ? 'active' : ''} onClick={() => setSubFilter('confirmed')}>Confirmed</button>
+                                        <button className={subFilter === 'cancelled' ? 'active' : ''} onClick={() => setSubFilter('cancelled')}>Cancelled</button>
+                                    </div>
+                                )}
+                            </div>
+                            <div className="chart-legend">
+                                <span className="legend-dot" style={{ backgroundColor: activeTab === 'sales' ? '#c5a059' : activeTab === 'orders' ? '#000' : activeTab === 'users' ? '#4f46e5' : activeTab === 'refunds' ? '#f43f5e' : '#16a34a' }}></span> 
+                                Data Pulse
+                            </div>
+                        </div>
+                        {renderChart()}
+                    </section>
+
+                    <section className="table-section">
+                        <div className="panel-header">
+                            <h3>{activeTab === 'refunds' ? 'Pending Returns' : 'Cycle Transactions'}</h3>
+                            <button className="text-action-btn">Full Intelligence</button>
+                        </div>
+                        {renderOrdersTable()}
+                    </section>
                     
-                    <div className={`stat-card ${activeTab === 'orders' ? 'active-stat' : ''}`} onClick={() => { setActiveTab('orders'); setShowGraph(false); }}>
-                        <div className="stat-icon orders">📜</div>
-                        <div className="stat-info">
-                            <h3>Total Orders</h3>
-                            <p className="stat-value">{periodOrders.length}</p>
-                            <p className="stat-meta">Filter applies: {timeframe}</p>
+                    <section className="inventory-section">
+                        <div className="panel-header">
+                            <h3>Collection Density</h3>
                         </div>
-                    </div>
-
-                    <div className={`stat-card ${activeTab === 'products' ? 'active-stat' : ''}`} onClick={() => { setActiveTab('products'); setShowGraph(false); }}>
-                        <div className="stat-icon products">📦</div>
-                        <div className="stat-info">
-                            <h3>Products</h3>
-                            <p className="stat-value">{rawData.products.length}</p>
-                            <p className="stat-meta">Aggregate items</p>
+                        <div className="density-list">
+                            {categoriesList.map((cat, idx) => (
+                                <div key={idx} className="density-item">
+                                    <div className="density-info">
+                                        <strong>{cat.category}</strong>
+                                        <span>{cat.count} Artifacts</span>
+                                    </div>
+                                    <div className="density-bar-vessel">
+                                        <div className="density-bar-fill" style={{ width: `${(cat.count / rawData.products.length) * 100}%` }}></div>
+                                    </div>
+                                </div>
+                            ))}
                         </div>
-                    </div>
-
-                    <div className={`stat-card ${activeTab === 'users' ? 'active-stat' : ''}`} onClick={() => { setActiveTab('users'); setShowGraph(false); }}>
-                        <div className="stat-icon users">👥</div>
-                        <div className="stat-info">
-                            <h3>Users</h3>
-                            <p className="stat-value">{periodUsers.length}</p>
-                            <p className="stat-meta">New joined ({timeframe})</p>
-                        </div>
-                    </div>
-
-                    <div className={`stat-card ${activeTab === 'refunds' ? 'active-stat' : ''}`} onClick={() => { setActiveTab('refunds'); setShowGraph(false); }}>
-                        <div className="stat-icon refunds" style={{background:'#fef3c7', color:'#d97706'}}>💳</div>
-                        <div className="stat-info">
-                            <h3>Refunds</h3>
-                            <p className="stat-value">{periodOrders.filter(o => o.orderStatus === 'cancelled' && o.refundDetails).length}</p>
-                            <p className="stat-meta">Pending or processed</p>
-                        </div>
-                    </div>
-
-                    <div className={`stat-card ${activeTab === 'transactions' ? 'active-stat' : ''}`} onClick={() => { setActiveTab('transactions'); setShowGraph(false); }}>
-                        <div className="stat-icon transactions" style={{background:'#e0e7ff', color:'#4338ca'}}>📊</div>
-                        <div className="stat-info">
-                            <h3>Transactions</h3>
-                            <p className="stat-value">View</p>
-                            <p className="stat-meta">Balance & Flow</p>
-                        </div>
-                    </div>
+                    </section>
                 </div>
 
-                <div className="dashboard-content">
-                    {activeTab === 'sales' && renderSalesView()}
-                    {activeTab === 'orders' && renderOrdersView()}
-                    {activeTab === 'products' && renderProductsView()}
-                    {activeTab === 'users' && renderUsersView()}
-                    {activeTab === 'refunds' && renderRefundsView()}
-                    {activeTab === 'transactions' && renderTransactionsView()}
-                </div>
+                {/* --- Refund Clearing Modal --- */}
+                {selectedRefundOrder && (
+                    <div className="luxury-modal-overlay">
+                        <div className="clearing-modal anim from-bottom">
+                            <div className="clearing-header">
+                                <h2>Financial Clearing Process</h2>
+                                <p>Initiating manual bank transfer for Order #{selectedRefundOrder.orderNumber}</p>
+                                <div className="cancellation-notice">₹50 cancellation fee will be automatically notified to the user.</div>
+                            </div>
+                            
+                            <div className="clearing-body">
+                                <div className="bank-details-card">
+                                    <div className="detail-entry"><span>Account Holder</span><strong>{selectedRefundOrder.refundDetails?.accountName || 'N/A'}</strong></div>
+                                    <div className="detail-entry"><span>Account Number</span><strong>{selectedRefundOrder.refundDetails?.accountNumber || 'N/A'}</strong></div>
+                                    <div className="detail-entry"><span>IFSC Protocol</span><strong>{selectedRefundOrder.refundDetails?.ifscCode || 'N/A'}</strong></div>
+                                    <div className="detail-entry"><span>Net Refund</span><strong className="gold">₹{selectedRefundOrder.refundDetails?.refundAmount?.toLocaleString()}</strong></div>
+                                </div>
+                            </div>
 
+                            <div className="clearing-footer">
+                                <button className="clearing-btn success" disabled={updatingRefund} onClick={() => handleUpdateRefundStatus(selectedRefundOrder._id, 'processed')}>
+                                    {updatingRefund ? 'Processing...' : 'Mark as Refunded'}
+                                </button>
+                                <button className="clearing-btn" onClick={() => setSelectedRefundOrder(null)}>Cancel</button>
+                            </div>
+                        </div>
+                    </div>
+                )}
             </main>
         </div>
     );

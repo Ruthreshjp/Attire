@@ -1,0 +1,36 @@
+/* Scroll animations */
+.anim {
+  opacity: 0;
+  transition: opacity 0.9s cubic-bezier(0.19,1,0.22,1), transform 0.9s cubic-bezier(0.19,1,0.22,1);
+  will-change: transform, opacity;
+}
+.anim.from-left   { transform: translateX(-60px); }
+.anim.from-right  { transform: translateX(60px); }
+.anim.from-bottom { transform: translateY(50px); }
+.anim.from-top    { transform: translateY(-50px); }
+.anim.zoom-in     { transform: scale(0.93); }
+.anim.fade        { }
+.anim.visible     { opacity: 1 !important; transform: none !important; }
+
+.delay-1 { transition-delay: 0.1s !important; }
+.delay-2 { transition-delay: 0.2s !important; }
+.delay-3 { transition-delay: 0.3s !important; }
+.delay-4 { transition-delay: 0.4s !important; }
+.delay-5 { transition-delay: 0.5s !important; }
+.delay-6 { transition-delay: 0.6s !important; }
+.delay-7 { transition-delay: 0.7s !important; }
+.delay-8 { transition-delay: 0.8s !important; }
+
+/* Utilities */
+@keyframes float { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-12px)} }
+.float-anim { animation: float 5s ease-in-out infinite; }
+
+@keyframes shimmer {
+  0%   { background-position: -600px 0; }
+  100% { background-position: 600px 0; }
+}
+.shimmer {
+  background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+  background-size: 1200px 100%;
+  animation: shimmer 2s infinite;
+}

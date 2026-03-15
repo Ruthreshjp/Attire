@@ -85,7 +85,7 @@ const orderSchema = new mongoose.Schema({
         ifscCode: String,
         refundStatus: {
             type: String,
-            enum: ['pending', 'processed', 'none'],
+            enum: ['pending', 'initiated', 'processing', 'processed', 'none'],
             default: 'none'
         },
         refundAmount: Number

@@ -294,19 +294,47 @@ const AdminProducts = () => {
     return (
         <div className="admin-layout">
             <AdminSidebar />
-            <main className="admin-main">
-                {/* Product List at the Top */}
-                <div className="listing-component-wrapper">
-                    <header className="admin-header split-header">
-                        <div className="header-info">
-                            <h1>Product Catalog</h1>
-                            <p>Manage your inventory and store listings</p>
-                        </div>
-                        <button className="add-btn" onClick={() => setIsAdding(true)}>+ Create New Product</button>
-                    </header>
+            <main className="admin-viewport">
+                <header className="viewport-header">
+                    <div className="title-stack">
+                        <h1>Product Intelligence</h1>
+                        <p>Managing {products.length} artifacts across {categories.length} categories</p>
+                    </div>
+                    <div className="header-actions">
+                        <button className="premium-add-btn" onClick={() => setIsAdding(true)}>
+                            <span className="btn-icon">✨</span> Curator: Add Artifact
+                        </button>
+                    </div>
+                </header>
 
-                    <div className="products-table-container">
-                        <table className="admin-table">
+                <div className="collection-intel-grid">
+                    <div className="intel-card gold">
+                        <span className="card-label">Total Inventory</span>
+                        <h2 className="card-value">{products.length}</h2>
+                        <div className="card-trend">Curated Listings</div>
+                    </div>
+                    <div className="intel-card ink">
+                        <span className="card-label">Stock Equilibrium</span>
+                        <h2 className="card-value">{products.reduce((acc, p) => acc + (p.stock || 0), 0)}</h2>
+                        <div className="card-trend">Units across catalog</div>
+                    </div>
+                    <div className="intel-card rose">
+                        <span className="card-label">Active Categories</span>
+                        <h2 className="card-value">{categories.length}</h2>
+                        <div className="card-trend">Taxonomy Groups</div>
+                    </div>
+                </div>
+
+                <div className="listing-intelligence-vessel">
+                    <div className="panel-header-v2">
+                        <h3>Inventory Ledger</h3>
+                        <div className="search-filter-compact">
+                             <input type="text" placeholder="Search collection..." className="compact-search" />
+                        </div>
+                    </div>
+
+                    <div className="luxury-table-wrapper-v2">
+                        <table className="luxury-table-v2">
                             <thead>
                                 <tr>
                                     <th>Product</th>
@@ -320,49 +348,45 @@ const AdminProducts = () => {
                             </thead>
                             <tbody>
                                 {products.length === 0 ? (
-                                    <tr><td colSpan="5" className="empty-row">No products found in catalog</td></tr>
+                                    <tr><td colSpan="7" className="empty-row-v2">No artifacts currently registered in the collection.</td></tr>
                                 ) : (
                                     products.map(p => (
                                         <tr key={p._id || p.id}>
-                                            <td className="product-cell">
-                                                <div className="product-thumb">
+                                            <td className="artifact-identity-cell">
+                                                <div className="artifact-preview">
                                                     {p.images && p.images[0] ? (
                                                         <img src={typeof p.images[0] === 'string' ? p.images[0] : p.images[0].url} alt="" />
-                                                    ) : 'N/A'}
+                                                    ) : <div className="no-img">N/A</div>}
                                                 </div>
-                                                <div className="product-meta">
+                                                <div className="artifact-meta">
                                                     <strong>{p.name}</strong>
-                                                    <span>{p.tags?.join(', ')}</span>
+                                                    <span>{p.category}</span>
                                                 </div>
                                             </td>
-                                            <td>{p.category}</td>
+                                            <td><span className="category-pill">{p.category}</span></td>
                                             <td>
-                                                <div className="price-display">
+                                                <div className="valuation-stack">
                                                     {p.originalPrice && p.price < p.originalPrice ? (
                                                         <>
-                                                            <span className="old-p">₹{p.originalPrice}</span>
-                                                            <span className="new-p">₹{p.price}</span>
+                                                            <span className="mrp-old">₹{p.originalPrice}</span>
+                                                            <strong className="sale-new">₹{p.price}</strong>
                                                         </>
                                                     ) : (
-                                                        <span className="new-p">₹{p.price || p.originalPrice}</span>
+                                                        <strong className="sale-new">₹{p.price || p.originalPrice}</strong>
                                                     )}
                                                 </div>
                                             </td>
                                             <td>
-                                                <span className={`stock-status ${p.stock < 10 ? 'low' : ''}`}>
-                                                    {p.stock} units
-                                                </span>
+                                                <div className="stock-visualizer">
+                                                    <span className={`stock-digit ${p.stock < 10 ? 'danger' : ''}`}>{p.stock} units</span>
+                                                    <div className="stock-bar-mini"><div className="stock-fill" style={{ width: `${Math.min(100, (p.stock / 50) * 100)}%` }}></div></div>
+                                                </div>
                                             </td>
+                                            <td><span className="sold-pill">{p.sold || 0} Sold</span></td>
                                             <td>
-                                                <span>{(p.stock || 0) + (p.sold || 0)} units</span>
-                                            </td>
-                                            <td>
-                                                <span className="sold-count">{p.sold || 0} sold</span>
-                                            </td>
-                                            <td>
-                                                <div className="action-btns">
-                                                    <button className="icon-btn" onClick={() => handleEdit(p)}>✏️</button>
-                                                    <button className="icon-btn delete" onClick={() => handleDelete(p._id)}>🗑️</button>
+                                                <div className="action-hub">
+                                                    <button className="hub-btn edit" onClick={() => handleEdit(p)}>Edit</button>
+                                                    <button className="hub-btn delete" onClick={() => handleDelete(p._id)}>Remove</button>
                                                 </div>
                                             </td>
                                         </tr>

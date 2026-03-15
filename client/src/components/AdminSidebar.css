@@ -1,99 +1,138 @@
+/* ================================================
+   ATTIRE NOIR — PREMIUM ADMIN SIDEBAR
+   ================================================ */
+
 .admin-sidebar {
-    width: 280px;
+    width: 290px;
     height: 100vh;
-    background-color: #050505;
-    /* Deep black background */
-    color: #ffffff;
+    background: #000;
+    color: #fff;
     position: fixed;
-    top: 0;
-    left: 0;
+    top: 0; left: 0;
     display: flex;
     flex-direction: column;
-    padding: 40px 0;
     z-index: 1000;
-    box-shadow: 10px 0 40px rgba(0, 0, 0, 0.5);
-    border-right: 1px solid rgba(255, 255, 255, 0.03);
-}
-
-.admin-logo {
-    padding: 0 40px 40px;
-    margin-bottom: 20px;
-}
-
-.admin-logo h2 {
-    font-family: 'Playfair Display', serif;
-    font-size: 1.6rem;
-    letter-spacing: 1px;
-    font-weight: 700;
-    color: #ffffff;
-    /* White logo text */
-}
-
-.admin-logo span {
-    font-size: 0.8rem;
+    border-right: 1px solid rgba(197,160,89,0.1);
     font-family: 'Inter', sans-serif;
-    color: #999;
-    text-transform: uppercase;
-    display: block;
-    letter-spacing: 4px;
-    margin-top: 4px;
 }
 
-.admin-nav {
-    display: flex;
-    flex-direction: column;
-    padding: 0 20px;
-}
-
-.nav-item {
-    padding: 16px 20px;
-    color: #999;
-    /* Grey text for inactive */
-    text-decoration: none;
+/* ── Brand Section ── */
+.sidebar-brand {
+    padding: 35px 30px;
     display: flex;
     align-items: center;
-    gap: 16px;
-    font-size: 0.95rem;
-    font-weight: 500;
-    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-    border-radius: 12px;
+    gap: 15px;
+    cursor: pointer;
+    background: linear-gradient(180deg, rgba(10,10,10,1) 0%, rgba(0,0,0,1) 100%);
+    border-bottom: 1px solid rgba(255,255,255,0.02);
+}
+.admin-logo-vessel {
+    width: 44px;
+    height: 44px;
+    background: #c5a059;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 8px;
+    box-shadow: 0 4px 15px rgba(197, 160, 89, 0.3);
+}
+.admin-logo-vessel img { 
+    width: 100%; 
+    height: 100%; 
+    object-fit: contain;
+}
+
+.brand-info h2 {
+    font-family: 'Playfair Display', serif;
+    font-size: 1.3rem;
+    letter-spacing: 4px;
+    color: #fff;
+    margin: 0;
+    font-weight: 900;
+}
+.control-badge {
+    font-size: 0.55rem;
+    color: #c5a059;
+    letter-spacing: 2.5px;
+    text-transform: uppercase;
+    font-weight: 800;
+    display: block;
+    margin-top: 2px;
+}
+
+/* ── Scroll Area ── */
+.sidebar-scroll-area {
+    flex: 1;
+    overflow-y: auto;
+    padding: 20px 20px 40px;
+}
+.sidebar-scroll-area::-webkit-scrollbar { width: 0; }
+
+/* ── Nav Groups ── */
+.sidebar-nav-group {
+    margin-bottom: 35px;
+}
+.group-title {
+    font-size: 0.6rem;
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    color: rgba(255,255,255,0.25);
+    font-weight: 800;
+    padding: 0 15px 12px;
+}
+
+.nav-link {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 16px 20px;
+    color: rgba(255,255,255,0.4);
+    text-decoration: none;
+    font-size: 0.85rem;
+    font-weight: 600;
+    transition: all 0.4s cubic-bezier(0.19, 1, 0.22, 1);
+    position: relative;
+    border-radius: 8px;
     margin-bottom: 4px;
 }
-
-.nav-item .icon {
-    font-size: 1.3rem;
-    filter: grayscale(1);
-    transition: all 0.3s;
+.nav-link:hover {
+    color: #fff;
+    background: rgba(255,255,255,0.05);
 }
 
-.nav-item:hover {
-    background-color: rgba(255, 255, 255, 0.05);
-    color: #ffffff;
+.link-blob {
+    position: absolute;
+    left: 0; top: 18px; bottom: 18px; width: 0;
+    background: #c5a059;
+    transition: all 0.4s cubic-bezier(0.19, 1, 0.22, 1);
 }
 
-.nav-item.active {
-    background-color: #c5a059;
-    /* Gold for active */
-    color: #ffffff;
-    font-weight: 600;
+.nav-link.active {
+    color: #c5a059;
+    background: rgba(197,160,89,0.08);
 }
+.nav-link.active .link-blob {
+    width: 4px; border-radius: 0 4px 4px 0;
+}
+.nav-link.active .link-icon { transform: scale(1.2); }
 
-.nav-item.active .icon {
-    filter: none;
-}
+.link-icon { font-size: 1.1rem; transition: transform 0.3s; opacity: 0.8; }
+.link-text { letter-spacing: 0.5px; }
 
-.sidebar-divider {
-    height: 1px;
-    background-color: rgba(255, 255, 255, 0.05);
-    margin: 30px 20px;
+/* ── Footer Links ── */
+.footer-links {
+    margin-top: 50px;
+    padding-top: 30px;
+    border-top: 1px solid rgba(255,255,255,0.03);
 }
-
-.back-btn {
-    margin-top: auto;
-    color: #999;
+.storefront-link {
+    background: rgba(197,160,89,0.15);
+    color: #c5a059;
+    margin-top: 10px;
 }
-
-.back-btn:hover {
-    color: #d32f2f;
-    background-color: #fff1f0;
+.storefront-link:hover {
+    background: #c5a059;
+    color: #000;
 }
+.storefront-link:hover .link-icon { filter: brightness(0); }

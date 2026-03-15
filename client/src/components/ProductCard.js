@@ -1,142 +1,89 @@
 import React from 'react';
-import { Link, useLocation } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import { useWishlist } from '../context/WishlistContext';
 
 const ProductCard = ({ product }) => {
     const { toggleWishlist, isWishlisted } = useWishlist();
-    const location = useLocation();
-
     const productId = product._id || product.id;
     const wishlisted = isWishlisted(productId);
 
-    const handleWishlistAction = (e) => {
-        e.preventDefault();
-        e.stopPropagation();
-
-        toggleWishlist(product);
+    const getFullImgUrl = (url) => {
+        if (!url) return 'https://via.placeholder.com/600x800?text=No+Image';
+        if (typeof url !== 'string') return url.url || 'https://via.placeholder.com/600x800?text=No+Image';
+        if (url.startsWith('http') || url.startsWith('data:')) return url;
+        return `http://localhost:5000/${url}`;
     };
 
-    // Use images array if available, otherwise fallback
-    const displayImage = product.images && product.images[0]
-        ? (typeof product.images[0] === 'string' ? product.images[0] : product.images[0].url)
-        : product.image;
+    const displayImage = getFullImgUrl(product.images?.[0] || product.image);
 
-    // Calculate discount percentage if original price is available
     const hasDiscount = product.originalPrice && product.price < product.originalPrice;
-    const discountPercent = hasDiscount
+    const discountPct = hasDiscount
         ? Math.round(((product.originalPrice - product.price) / product.originalPrice) * 100)
         : product.discount;
 
-    // Check if product is "New" (listed in the last 7 days)
-    const isActuallyNew = product.isNewArrival || (product.createdAt && (new Date() - new Date(product.createdAt)) < 7 * 24 * 60 * 60 * 1000);
-
-    const isHomePage = location.pathname === '/';
-
+    const handleWishlist = (e) => {
+        e.preventDefault(); e.stopPropagation();
+        toggleWishlist(product);
+    };
 
     return (
         <div className="product-card">
             <div className="product-image-container">
-                <Link to={`/product/${product._id || product.id}`}>
-                    <img
-                        src={displayImage}
-                        alt={product.name}
-                        className="product-image"
-                    />
+                <Link to={`/product/${productId}`}>
+                    <img src={displayImage} alt={product.name} className="product-image" />
                 </Link>
-                {isActuallyNew && <span className="product-badge new">New Arrival</span>}
 
+                {/* Badges */}
+                {product.isNewArrival && <span className="product-badge new">New Arrival</span>}
+
+                {/* Wishlist */}
                 <button
-                    className={`wishlist-btn ${wishlisted ? 'active' : ''}`}
-                    onClick={handleWishlistAction}
+                    className={`wishlist-btn${wishlisted ? ' active' : ''}`}
+                    onClick={handleWishlist}
+                    title="Add to Wishlist"
                 >
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill={wishlisted ? "currentColor" : "none"} stroke="currentColor" strokeWidth="2">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill={wishlisted ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth="2">
                         <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
                     </svg>
                 </button>
             </div>
 
             <div className="product-info">
-                {!isHomePage && <p className="product-category">{product.category}</p>}
-                <Link to={`/product/${product._id || product.id}`} className="product-name-link">
+                <p className="product-category">{product.category}</p>
+                <Link to={`/product/${productId}`} className="product-name-link">
                     <h3 className="product-name">{product.name}</h3>
                 </Link>
-
-                {!isHomePage && (
-                    <div className="product-rating">
-                        {[...Array(5)].map((_, index) => (
-                            <svg
-                                key={index}
-                                width="14"
-                                height="14"
-                                viewBox="0 0 24 24"
-                                fill={index < Math.floor(product.rating || 0) ? "currentColor" : "none"}
-                                stroke="currentColor"
-                                strokeWidth="2"
-                            >
-                                <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
-                            </svg>
-                        ))}
-                        <span className="rating-count">({product.reviewsCount || product.reviews || 0})</span>
-                    </div>
-                )}
-
                 <div className="product-price">
                     {product.isSpecialOffer && product.specialPrice ? (
                         <>
                             {product.originalPrice && <span className="original-price">₹{product.originalPrice.toLocaleString('en-IN')}</span>}
-                            <span className="current-price discounted-price">₹{product.specialPrice.toLocaleString('en-IN')}</span>
-                            {product.extraDiscount && <span className="offer-percentage">+{product.extraDiscount}% EXTRA</span>}
+                            <span className="current-price">₹{product.specialPrice.toLocaleString('en-IN')}</span>
+                            {product.extraDiscount && <span className="offer-percentage">+{product.extraDiscount}% OFF</span>}
                         </>
                     ) : hasDiscount ? (
                         <>
                             <span className="original-price">₹{product.originalPrice.toLocaleString('en-IN')}</span>
-                            <span className="current-price discounted-price">₹{product.price.toLocaleString('en-IN')}</span>
-                            <span className="offer-percentage">{discountPercent}% OFF</span>
+                            <span className="current-price">₹{product.price.toLocaleString('en-IN')}</span>
+                            <span className="offer-percentage">{discountPct}% OFF</span>
                         </>
                     ) : (
-                        <span className="current-price">₹{(product.price || product.originalPrice).toLocaleString('en-IN')}</span>
+                        <span className="current-price">₹{(product.price || product.originalPrice || 0).toLocaleString('en-IN')}</span>
                     )}
                 </div>
-
+                {product.promoCode && (
+                    <div className="promo-badge-vessel">
+                        <span className="p-icon">🏷️</span>
+                        Code: <strong>{product.promoCode}</strong>
+                    </div>
+                )}
                 {product.colors && product.colors.length > 0 && (
                     <div className="product-colors">
-                        {product.colors.map((color, index) => (
-                            <span
-                                key={index}
-                                className="color-dot"
-                                style={{ backgroundColor: color.hexCode || color }}
-                                title={color.name || color}
-                            ></span>
+                        {product.colors.slice(0, 5).map((c, i) => (
+                            <span key={i} className="color-dot" style={{ backgroundColor: c.hexCode || c }} title={c.name || ''} />
                         ))}
                     </div>
                 )}
-
-
             </div>
-
-            <style>{`
-                .product-badge.new {
-                    top: 10px;
-                    left: 10px;
-                    padding: 4px 8px;
-                    font-size: 0.65rem;
-                    background: #1a1a1a;
-                }
-                /* Offset wishlist if new arrival badge exists */
-                .wishlist-btn {
-                    top: 15px;
-                    right: 15px;
-                    background: white;
-                    border: 1px solid #eee;
-                    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-                    z-index: 10;
-                }
-                .wishlist-btn.active {
-                    color: #d32f2f;
-                    border-color: #d32f2f;
-                }
-
-            `}</style>
         </div>
     );
 };

@@ -40,23 +40,41 @@ const AdminOrders = () => {
     return (
         <div className="admin-layout">
             <AdminSidebar />
-            <main className="admin-main">
-                <header className="admin-header">
-                    <div className="header-info">
-                        <h1>Order Management</h1>
-                        <p>Track and process customer purchases</p>
+            <main className="admin-viewport">
+                <header className="viewport-header">
+                    <div className="title-stack">
+                        <h1>Order Intelligence</h1>
+                        <p>Track and process customer acquisitions</p>
                     </div>
                 </header>
 
-                <div className="order-filters-bar">
+                <div className="collection-intel-grid">
+                    <div className="intel-card gold">
+                        <span className="card-label">Gross Intake</span>
+                        <h2 className="card-value">₹{orders.reduce((acc, o) => acc + (o.total || o.amount || 0), 0).toLocaleString()}</h2>
+                        <div className="card-trend">Total Volume</div>
+                    </div>
+                    <div className="intel-card ink">
+                        <span className="card-label">Deliveries</span>
+                        <h2 className="card-value">{orders.filter(o => o.orderStatus === 'delivered' || o.status === 'delivered').length}</h2>
+                        <div className="card-trend">Fulfilled cycles</div>
+                    </div>
+                    <div className="intel-card rose">
+                        <span className="card-label">Active Cycles</span>
+                        <h2 className="card-value">{orders.filter(o => o.orderStatus !== 'cancelled' && o.orderStatus !== 'delivered').length}</h2>
+                        <div className="card-trend">In-process flow</div>
+                    </div>
+                </div>
+
+                <div className="order-filters-bar-v2">
                     {filters.map(filter => (
                         <button
                             key={filter}
-                            className={`filter-chip ${activeFilter === filter ? 'active' : ''}`}
+                            className={`filter-pill-v2 ${activeFilter === filter ? 'active' : ''}`}
                             onClick={() => setActiveFilter(filter)}
                         >
                             {filter}
-                            <span className="count">
+                            <span className="pill-count">
                                 {filter === 'All' ? orders.length : orders.filter(o => {
                                     if (filter === 'Confirmed') return o.orderStatus !== 'cancelled';
                                     if (filter === 'Cancelled') return o.orderStatus === 'cancelled';
@@ -67,46 +85,44 @@ const AdminOrders = () => {
                     ))}
                 </div>
 
-                <div className="orders-table-container">
-                    <table className="admin-table">
-                        <thead>
-                            <tr>
-                                <th>Order ID</th>
-                                <th>Customer</th>
-                                <th>Date & City</th>
-                                <th>Amount</th>
-                                <th>Payment Status</th>
-                                <th>Actions</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {filteredOrders.length === 0 ? (
-                                <tr><td colSpan="6" className="empty-row">No {activeFilter.toLowerCase()} orders found</td></tr>
-                            ) : (
-                                filteredOrders.map(order => (
-                                    <tr key={order.id}>
-                                        <td><strong>{order.id}</strong></td>
-                                        <td>{order.user}</td>
-                                        <td>
-                                            <div className="date-city">
-                                                <span>{order.date}</span>
-                                                <small>{order.city}</small>
-                                            </div>
-                                        </td>
-                                        <td>₹{order.amount.toLocaleString()}</td>
-                                        <td>
-                                            <span className={`status-badge ${order.status.toLowerCase()}`}>
-                                                {order.status}
-                                            </span>
-                                        </td>
-                                        <td>
-                                            <button className="text-btn-sm">View Details</button>
-                                        </td>
-                                    </tr>
-                                ))
-                            )}
-                        </tbody>
-                    </table>
+                <div className="listing-intelligence-vessel">
+                    <div className="luxury-table-wrapper-v2">
+                        <table className="luxury-table-v2">
+                            <thead>
+                                <tr>
+                                    <th>Identity</th>
+                                    <th>Client</th>
+                                    <th>Investment</th>
+                                    <th>Status</th>
+                                    <th>Timeline</th>
+                                    <th>Action</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {filteredOrders.length === 0 ? (
+                                    <tr><td colSpan="6" className="empty-row-v2">No records found for the selected cycle.</td></tr>
+                                ) : (
+                                    filteredOrders.map(order => (
+                                        <tr key={order._id || order.id}>
+                                            <td><span className="artifact-meta"><strong>#{order.orderNumber || order.id}</strong></span></td>
+                                            <td>
+                                                <div className="artifact-meta">
+                                                    <strong>{order.user?.name || order.user || 'Guest'}</strong>
+                                                    <span>{order.paymentMethod || 'Manual'}</span>
+                                                </div>
+                                            </td>
+                                            <td><strong className="sale-new">₹{(order.total || order.amount || 0).toLocaleString()}</strong></td>
+                                            <td><span className={`pill ${order.orderStatus?.toLowerCase() || order.status?.toLowerCase()}`}>{order.orderStatus || order.status}</span></td>
+                                            <td>{new Date(order.createdAt || order.date).toLocaleDateString()}</td>
+                                            <td>
+                                                <button className="hub-btn edit">View Flow</button>
+                                            </td>
+                                        </tr>
+                                    ))
+                                )}
+                            </tbody>
+                        </table>
+                    </div>
                 </div>
             </main>
 

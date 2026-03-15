@@ -85,29 +85,30 @@ router.get('/orders', auth, adminAuth, async (req, res) => {
 });
 
 // @route   PUT /api/admin/orders/:id/refund
-// @desc    Process refund
+// @desc    Update refund status (initiated, processing, processed)
 // @access  Private/Admin
 router.put('/orders/:id/refund', auth, adminAuth, async (req, res) => {
     try {
+        const { status } = req.body;
         let order = await Order.findById(req.params.id);
 
         if (!order) {
             return res.status(404).json({ success: false, message: 'Order not found' });
         }
 
-        if (order.refundDetails && order.refundDetails.refundStatus === 'processed') {
-            return res.status(400).json({ success: false, message: 'Refund already processed' });
-        }
-
         if (order.orderStatus !== 'cancelled') {
-            return res.status(400).json({ success: false, message: 'Cannot process refund for not cancelled order' });
+            return res.status(400).json({ success: false, message: 'Only cancelled orders can be updated for refund' });
         }
 
-        order.refundDetails.refundStatus = 'processed';
+        if (status) {
+            order.refundDetails.refundStatus = status;
+        } else {
+            // Default behavior if no status provided
+            order.refundDetails.refundStatus = 'processed';
+        }
         
         await order.save();
-
-        res.json({ success: true, message: 'Refund processed successfully', order });
+        res.json({ success: true, message: `Refund status updated to ${order.refundDetails.refundStatus}`, order });
     } catch (err) {
         console.error(err);
         res.status(500).json({ success: false, message: 'Server error' });

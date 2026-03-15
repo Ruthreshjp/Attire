@@ -61,7 +61,12 @@ router.get('/:pageName', async (req, res) => {
 router.post('/', [auth, admin], async (req, res) => {
     const { pageName } = req.body;
     const updateFields = {};
-    const possibleFields = ['hero', 'sections', 'values', 'cta', 'carousel', 'brandPhilosophy', 'newsletter', 'categories'];
+    const possibleFields = [
+        'hero', 'sections', 'values', 'cta', 'carousel', 'brandPhilosophy', 
+        'newsletter', 'categories', 'ticker', 'footer', 'metadata',
+        'signature', 'lifestyle', 'newArrivals', 'trending', 'editorial1', 
+        'craft', 'flagship', 'editorial2', 'statsBand', 'promise'
+    ];
 
     possibleFields.forEach(field => {
         if (req.body[field] !== undefined) {

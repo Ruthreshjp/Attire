@@ -10,14 +10,18 @@ const useScrollAnimation = () => {
           }
         });
       },
-      { threshold: 0.08, rootMargin: '0px 0px -40px 0px' }
+      { threshold: 0.1, rootMargin: '0px 0px -50px 0px' }
     );
 
     const elements = document.querySelectorAll('.anim');
     elements.forEach((el) => observer.observe(el));
 
-    return () => elements.forEach((el) => observer.unobserve(el));
-  });
+    return () => {
+      elements.forEach((el) => observer.unobserve(el));
+      observer.disconnect();
+    };
+  }, []); // Only run once on mount
 };
+
 
 export default useScrollAnimation;

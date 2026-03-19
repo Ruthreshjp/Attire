@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import AdminSidebar from '../../components/AdminSidebar';
 import Navbar from '../../components/Navbar';
+import { useNotification } from '../../context/NotificationContext';
 import { EditableText, EditableImage } from '../../components/Editable';
 import { DEFAULT_ABOUT_DATA } from '../../utils/defaultContent';
 import { Link } from 'react-router-dom';
@@ -12,6 +13,7 @@ const LiveEditAbout = () => {
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
     const [isDirty, setIsDirty] = useState(false);
+    const { showAlert } = useNotification();
 
     useEffect(() => {
         const fetchContent = async () => {
@@ -59,10 +61,10 @@ const LiveEditAbout = () => {
                 hero, sections, values, cta, promise,
                 metadata: rest
             }, { headers: { 'x-auth-token': token } });
-            alert('✨ About page globally updated!');
+            showAlert('✨ About page globally updated!');
             setIsDirty(false);
         } catch (err) {
-            alert('Failed to save: ' + (err.response?.data?.message || err.message));
+            showAlert('Failed to save: ' + (err.response?.data?.message || err.message));
         } finally {
             setSaving(false);
         }

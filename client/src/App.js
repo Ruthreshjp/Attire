@@ -18,45 +18,47 @@ import { CartProvider } from './context/CartContext';
 import { WishlistProvider } from './context/WishlistContext';
 import './App.css';
 import ReviewPrompt from './components/ReviewPrompt';
+import { NotificationProvider } from './context/NotificationContext';
+import PremiumAlert from './components/PremiumAlert';
+import PremiumConfirm from './components/PremiumConfirm';
 
 const Products = lazy(() => import('./pages/Products'));
 const OfferZone = lazy(() => import('./pages/OfferZone'));
 const ProductDetail = lazy(() => import('./pages/ProductDetail'));
 
-// Route-change loader
-const RouteLoader = () => {
-    const location = useLocation();
-    const [show, setShow] = useState(false);
-    const [fade, setFade] = useState(false);
-
-    useEffect(() => {
-        setShow(true);
-        setFade(false);
-        const t1 = setTimeout(() => setFade(true), 600);
-        const t2 = setTimeout(() => setShow(false), 1000);
-        return () => { clearTimeout(t1); clearTimeout(t2); };
-    }, [location.pathname]);
-
-    if (!show) return null;
-
-    return (
-        <div className={`page-loader${fade ? ' fade-out' : ''}`} style={{ position: 'fixed', zIndex: 99999 }}>
-            <img src="/logo.png" alt="Attire" className="loader-logo" />
-            <p className="loader-wordmark">A T T I R E</p>
-            <div className="loader-bar"><div className="loader-progress" /></div>
-        </div>
-    );
-};
+// Error Boundary Section
+class ErrorBoundary extends React.Component {
+    constructor(props) { super(props); this.state = { hasError: false }; }
+    static getDerivedStateFromError() { return { hasError: true }; }
+    componentDidCatch(error, info) { console.error("Crash Insight:", error, info); }
+    render() {
+        if (this.state.hasError) {
+            return (
+                <div style={{ height: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', background: '#000', color: '#c5a059', padding: '40px', textAlign: 'center' }}>
+                    <h1 style={{ fontFamily: 'Playfair Display', fontSize: '3rem', marginBottom: '20px' }}>System Interruption</h1>
+                    <p style={{ color: '#aaa', maxWidth: '500px', lineHeight: '1.6', marginBottom: '40px' }}>Our intelligence center encountered an unexpected anomaly while processing your request.</p>
+                    <button onClick={() => window.location.reload()} style={{ padding: '18px 45px', background: '#c5a059', color: '#000', border: 'none', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '2px', cursor: 'pointer' }}>Refresh Environment</button>
+                    <p style={{ marginTop: '20px', color: '#333', fontSize: '0.7rem' }}>Error clearance code: ATTIRE-0X1A</p>
+                </div>
+            );
+        }
+        return this.props.children;
+    }
+}
 
 function App() {
     return (
-        <AuthProvider>
-            <CartProvider>
-                <WishlistProvider>
-                    <div className="App">
-                        <RouteLoader />
-                        <ReviewPrompt />
-                        <Suspense fallback={<div />}>
+        <ErrorBoundary>
+        <NotificationProvider>
+            <AuthProvider>
+                <CartProvider>
+                    <WishlistProvider>
+                        <div className="App">
+                            <PremiumAlert />
+                            <PremiumConfirm />
+                            <ReviewPrompt />
+                            <Suspense fallback={<div className="luxury-spinner" style={{ margin: '100px auto' }}></div>}>
+
                             <Routes>
                                 <Route path="/" element={<Home />} />
                                 <Route path="/products" element={<Products />} />
@@ -81,7 +83,10 @@ function App() {
                 </WishlistProvider>
             </CartProvider>
         </AuthProvider>
+    </NotificationProvider>
+    </ErrorBoundary>
     );
 }
 
 export default App;
+

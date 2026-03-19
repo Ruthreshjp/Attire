@@ -4,7 +4,6 @@ import './AdminDashboard.css';
 
 const AdminProducts = () => {
     const [products, setProducts] = useState([]);
-    const [loading, setLoading] = useState(true);
     const [isAdding, setIsAdding] = useState(false);
     const [isEditing, setIsEditing] = useState(false);
     const [editingId, setEditingId] = useState(null);
@@ -47,8 +46,6 @@ const AdminProducts = () => {
             }
         } catch (err) {
             console.error('Error fetching products:', err);
-        } finally {
-            setLoading(false);
         }
     };
 
@@ -135,7 +132,6 @@ const AdminProducts = () => {
         'lime': '#00ff00',
         'lavender': '#e6e6fa',
         'turquoise': '#40e0d0',
-        'beige': '#f5f5dc',
         'ivory': '#fffff0',
         'burgundy': '#800020',
         'charcoal': '#36454f'
@@ -343,6 +339,8 @@ const AdminProducts = () => {
                                     <th>Available Stock</th>
                                     <th>Total Stock</th>
                                     <th>Sold</th>
+                                    <th>Displayed Date</th>
+                                    <th>Last Edit</th>
                                     <th>Actions</th>
                                 </tr>
                             </thead>
@@ -382,7 +380,16 @@ const AdminProducts = () => {
                                                     <div className="stock-bar-mini"><div className="stock-fill" style={{ width: `${Math.min(100, (p.stock / 50) * 100)}%` }}></div></div>
                                                 </div>
                                             </td>
+                                            <td><span className="stock-digit">{(p.stock || 0) + (p.sold || 0)} Units</span></td>
                                             <td><span className="sold-pill">{p.sold || 0} Sold</span></td>
+                                            <td><span className="stock-digit">{new Date(p.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}</span></td>
+                                            <td>
+                                                <span className="stock-digit">
+                                                    {p.updatedAt && new Date(p.updatedAt).getTime() !== new Date(p.createdAt).getTime() 
+                                                        ? new Date(p.updatedAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }) 
+                                                        : '-'}
+                                                </span>
+                                            </td>
                                             <td>
                                                 <div className="action-hub">
                                                     <button className="hub-btn edit" onClick={() => handleEdit(p)}>Edit</button>
@@ -462,15 +469,23 @@ const AdminProducts = () => {
                                         </div>
                                     )}
                                     <div className="form-group">
-                                        <label>Total Stock</label>
+                                        <label>Current Units Available</label>
                                         <input
                                             name="stock"
                                             type="number"
                                             required
+                                            min="0"
                                             value={newProduct.stock}
                                             onChange={handleInputChange}
-                                            placeholder="Available units"
+                                            placeholder="Remaining inventory units"
                                         />
+                                        <div style={{ marginTop: '8px', fontSize: '0.75rem', color: '#666' }}>
+                                            {isEditing ? (
+                                                <span>History: {newProduct.sold || 0} sold. Total Inventory: <strong>{(Number(newProduct.stock) || 0) + (newProduct.sold || 0)}</strong></span>
+                                            ) : (
+                                                <span>This is the manual starting count for your collection.</span>
+                                            )}
+                                        </div>
                                     </div>
                                 </div>
 

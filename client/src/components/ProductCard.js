@@ -54,11 +54,10 @@ const ProductCard = ({ product }) => {
                     <h3 className="product-name">{product.name}</h3>
                 </Link>
                 <div className="product-price">
-                    {product.isSpecialOffer && product.specialPrice ? (
+                    {product.isSpecialOffer ? (
                         <>
-                            {product.originalPrice && <span className="original-price">₹{product.originalPrice.toLocaleString('en-IN')}</span>}
-                            <span className="current-price">₹{product.specialPrice.toLocaleString('en-IN')}</span>
-                            {product.extraDiscount && <span className="offer-percentage">+{product.extraDiscount}% OFF</span>}
+                            <span className="current-price">₹{(product.price || product.originalPrice || 0).toLocaleString('en-IN')}</span>
+                            <span className="offer-percentage" style={{ background: '#c5a059', color: '#000' }}>Promo Code Req.</span>
                         </>
                     ) : hasDiscount ? (
                         <>
@@ -70,10 +69,12 @@ const ProductCard = ({ product }) => {
                         <span className="current-price">₹{(product.price || product.originalPrice || 0).toLocaleString('en-IN')}</span>
                     )}
                 </div>
-                {product.promoCode && (
-                    <div className="promo-badge-vessel">
-                        <span className="p-icon">🏷️</span>
-                        Code: <strong>{product.promoCode}</strong>
+                {product.couponCode && (
+                    <div className="promo-badge-vessel" style={{ marginTop: '10px', padding: '6px 12px', background: '#fff9e6', border: '1px solid #ffd700', borderRadius: '6px', display: 'inline-flex', alignItems: 'center', gap: '6px', width: 'fit-content' }}>
+                        <span className="p-icon" style={{ fontSize: '0.9rem' }}>🏷️</span>
+                        <span style={{ fontSize: '0.8rem', color: '#856404', fontWeight: 600 }}>
+                            Use code <strong>{product.couponCode}</strong> for extra <strong>{product.extraDiscount || Math.round(((product.price - (product.specialPrice || product.price * 0.9)) / (product.price || 1)) * 100)}%</strong> off
+                        </span>
                     </div>
                 )}
                 {product.colors && product.colors.length > 0 && (

@@ -1,18 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import AdminSidebar from '../../components/AdminSidebar';
+import { useNotification } from '../../context/NotificationContext';
 import './AdminDashboard.css';
 import axios from 'axios';
 import {
-    BarChart,
-    Bar,
     XAxis,
     YAxis,
     CartesianGrid,
     Tooltip,
-    Legend,
     ResponsiveContainer,
-    LineChart,
-    Line,
     AreaChart,
     Area
 } from 'recharts';
@@ -21,14 +17,19 @@ const AdminDashboard = () => {
     const [rawData, setRawData] = useState({ products: [], users: [], orders: [] });
     const [loading, setLoading] = useState(true);
     const [timeframe, setTimeframe] = useState('month');
-    const [activeTab, setActiveTab] = useState('sales'); // sales, orders, users, transactions, refunds
+    const [activeTab, setActiveTab] = useState('sales'); // sales, orders, users, transactions, refunds, deliveries, returns
     const [subFilter, setSubFilter] = useState('all'); // all, confirmed, cancelled
     const [selectedRefundOrder, setSelectedRefundOrder] = useState(null);
     const [updatingRefund, setUpdatingRefund] = useState(false);
+    const [adminComment, setAdminComment] = useState('');
+    const { showAlert } = useNotification();
+
+    const [error, setError] = useState('');
 
     useEffect(() => {
         const fetchDashboardData = async () => {
             try {
+                setLoading(true);
                 const res = await axios.get('http://localhost:5000/api/admin/dashboard', {
                     headers: { 'x-auth-token': localStorage.getItem('token') }
                 });
@@ -38,10 +39,13 @@ const AdminDashboard = () => {
                         users: res.data.users || [],
                         orders: res.data.orders || []
                     });
+                } else {
+                    setError('Failed to load dashboard data');
                 }
                 setLoading(false);
             } catch (err) {
                 console.error('Error fetching dashboard data:', err);
+                setError('Error connecting to intelligence center');
                 setLoading(false);
             }
         };
@@ -68,9 +72,11 @@ const AdminDashboard = () => {
 
     const periodOrders = rawData.orders.filter(o => filterByTimeframe(o.createdAt, timeframe));
     const paidOrders = periodOrders.filter(o => o.paymentStatus === 'paid');
-    const confirmedOrders = periodOrders.filter(o => o.orderStatus !== 'cancelled');
+    const confirmedOrders = periodOrders.filter(o => o.orderStatus !== 'cancelled' && o.orderStatus !== 'returned' && o.orderStatus !== 'return_pending');
     const cancelledOrders = periodOrders.filter(o => o.orderStatus === 'cancelled');
-    const pendingRefunds = cancelledOrders.filter(o => o.refundDetails?.refundStatus === 'initiated' || o.refundDetails?.refundStatus === 'none' || !o.refundDetails?.refundStatus);
+    const returnsOrders = periodOrders.filter(o => o.orderStatus === 'returned' || o.orderStatus === 'return_pending');
+    const deliveredOrders = periodOrders.filter(o => o.orderStatus === 'processed' || o.orderStatus === 'delivered');
+    const pendingRefunds = [...cancelledOrders, ...returnsOrders].filter(o => o.orderStatus === 'return_pending' || (o.orderStatus === 'cancelled' && (o.refundDetails?.refundStatus === 'initiated' || o.refundDetails?.refundStatus === 'none' || !o.refundDetails?.refundStatus)));
     
     const totalSales = paidOrders.reduce((acc, curr) => acc + curr.total, 0);
     const periodUsers = rawData.users.filter(u => filterByTimeframe(u.createdAt, timeframe));
@@ -87,20 +93,29 @@ const AdminDashboard = () => {
             source = periodUsers;
         } else if (activeTab === 'refunds') {
             source = cancelledOrders;
+        } else if (activeTab === 'returns') {
+            source = returnsOrders;
+        } else if (activeTab === 'deliveries') {
+            source = deliveredOrders;
         } else {
             if (subFilter === 'confirmed') source = confirmedOrders;
             else if (subFilter === 'cancelled') source = cancelledOrders;
+            else if (subFilter === 'returned') source = returnsOrders;
             else source = periodOrders;
         }
 
         source.sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt)).forEach(item => {
             const key = formatKey(item.createdAt);
-            if (!dataMap[key]) dataMap[key] = { name: key, sales: 0, orders: 0, users: 0, net: 0, refunds: 0 };
+            if (!dataMap[key]) dataMap[key] = { name: key, sales: 0, orders: 0, users: 0, net: 0, refunds: 0, deliveries: 0, returns: 0 };
             
             if (activeTab === 'users') {
                 dataMap[key].users += 1;
             } else if (activeTab === 'refunds') {
                 dataMap[key].refunds += item.refundDetails?.refundAmount || 0;
+            } else if (activeTab === 'deliveries') {
+                dataMap[key].deliveries += 1;
+            } else if (activeTab === 'returns') {
+                dataMap[key].returns += 1;
             } else {
                 dataMap[key].orders += 1;
                 if (item.paymentStatus === 'paid') {
@@ -129,29 +144,44 @@ const AdminDashboard = () => {
     });
     const categoriesList = Object.keys(categoryMap).map(k => ({ category: k, count: categoryMap[k] }));
 
-    const handleUpdateRefundStatus = async (orderId, status) => {
+    const handleReturnAction = async (orderId, action) => {
         setUpdatingRefund(true);
         try {
-            const res = await axios.put(`http://localhost:5000/api/admin/orders/${orderId}/refund`, { status }, {
+            const order = rawData.orders.find(o => o._id === orderId);
+            const isCancelled = order?.orderStatus === 'cancelled';
+            
+            const url = `http://localhost:5000/api/admin/orders/${orderId}/${isCancelled ? 'refund' : 'return-action'}`;
+            const data = isCancelled ? { status: action === 'refund' ? 'processed' : 'processing' } : { action, comment: adminComment };
+
+            const res = await axios.put(url, data, {
                 headers: { 'x-auth-token': localStorage.getItem('token') }
             });
             if (res.data.success) {
-                alert(`Refund status updated to ${status}. Note: ₹50 cancellation fee applied.`);
-                // Refresh dashboard data
-                const resData = await axios.get('http://localhost:5000/api/admin/dashboard', {
-                    headers: { 'x-auth-token': localStorage.getItem('token') }
-                });
-                if (resData.data.success) {
-                    setRawData({
-                        products: resData.data.products || [],
-                        users: resData.data.users || [],
-                        orders: resData.data.orders || []
-                    });
-                }
+                // Close modal and reset state immediately
                 setSelectedRefundOrder(null);
+                setAdminComment('');
+                
+                // Show success message
+                showAlert(`Capital Reversal Authorized: Order #${order?.orderNumber || 'N/A'} has been successfully processed.`, 'success');
+
+                // Refresh dashboard data silently
+                try {
+                    const resData = await axios.get('http://localhost:5000/api/admin/dashboard', {
+                        headers: { 'x-auth-token': localStorage.getItem('token') }
+                    });
+                    if (resData.data && resData.data.success) {
+                        setRawData({
+                            products: resData.data.products || [],
+                            users: resData.data.users || [],
+                            orders: resData.data.orders || []
+                        });
+                    }
+                } catch (fetchErr) {
+                    console.error('Silent refresh failed:', fetchErr);
+                }
             }
         } catch (err) {
-            alert(err.response?.data?.message || 'Error processing refund');
+            showAlert(err.response?.data?.message || 'Error processing action');
         } finally {
             setUpdatingRefund(false);
         }
@@ -161,12 +191,16 @@ const AdminDashboard = () => {
         const dataKey = activeTab === 'sales' ? 'sales' : 
                           activeTab === 'orders' ? 'orders' : 
                           activeTab === 'users' ? 'users' : 
-                          activeTab === 'refunds' ? 'refunds' : 'net';
+                          activeTab === 'refunds' ? 'refunds' : 
+                          activeTab === 'deliveries' ? 'deliveries' :
+                          activeTab === 'returns' ? 'returns' : 'net';
         
         const chartColor = activeTab === 'sales' ? '#c5a059' : 
                            activeTab === 'orders' ? '#000' : 
                            activeTab === 'users' ? '#4f46e5' : 
-                           activeTab === 'refunds' ? '#f43f5e' : '#16a34a';
+                           activeTab === 'refunds' ? '#f43f5e' : 
+                           activeTab === 'deliveries' ? '#0d9488' :
+                           activeTab === 'returns' ? '#8a6d3b' : '#16a34a';
 
         return (
             <div className="analytics-vessel">
@@ -180,11 +214,11 @@ const AdminDashboard = () => {
                         </defs>
                         <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#eee" />
                         <XAxis dataKey="name" axisLine={false} tickLine={false} />
-                        <YAxis axisLine={false} tickLine={false} tickFormatter={(v) => activeTab.includes('sales') || activeTab === 'net' ? `₹${v}` : v} />
+                        <YAxis axisLine={false} tickLine={false} tickFormatter={(v) => activeTab.includes('sales') || activeTab === 'net' || activeTab === 'refunds' ? `₹${v}` : v} />
                         <Tooltip
                             contentStyle={{ background: '#000', border: 'none', borderRadius: '8px' }}
                             itemStyle={{ color: '#fff' }}
-                            formatter={(value) => [activeTab.includes('sales') || activeTab === 'net' ? `₹${value.toLocaleString()}` : value, activeTab.toUpperCase()]}
+                            formatter={(value) => [activeTab.includes('sales') || activeTab === 'net' || activeTab === 'refunds' ? `₹${value.toLocaleString()}` : value, activeTab.toUpperCase()]}
                         />
                         <Area type="monotone" dataKey={dataKey} stroke={chartColor} strokeWidth={3} fillOpacity={1} fill="url(#colorValue)" />
                     </AreaChart>
@@ -197,6 +231,10 @@ const AdminDashboard = () => {
         let tableSource = [];
         if (activeTab === 'refunds') {
             tableSource = cancelledOrders;
+        } else if (activeTab === 'returns') {
+            tableSource = returnsOrders;
+        } else if (activeTab === 'deliveries') {
+            tableSource = deliveredOrders;
         } else if (activeTab === 'users') {
             return (
                 <div className="luxury-table-wrapper">
@@ -219,6 +257,7 @@ const AdminDashboard = () => {
         } else {
             if (subFilter === 'confirmed') tableSource = confirmedOrders;
             else if (subFilter === 'cancelled') tableSource = cancelledOrders;
+            else if (subFilter === 'returned') tableSource = returnsOrders;
             else tableSource = periodOrders;
         }
 
@@ -232,7 +271,7 @@ const AdminDashboard = () => {
                             <th>Investment</th>
                             <th>Status</th>
                             <th>Timeline</th>
-                            {activeTab === 'refunds' && <th>Action</th>}
+                            {(activeTab === 'refunds' || activeTab === 'returns') && <th>Action</th>}
                         </tr>
                     </thead>
                     <tbody>
@@ -248,14 +287,17 @@ const AdminDashboard = () => {
                                 <td>₹{order.total.toLocaleString()}</td>
                                 <td><span className={`pill ${order.orderStatus.toLowerCase()}`}>{order.orderStatus}</span></td>
                                 <td>{new Date(order.createdAt).toLocaleDateString()}</td>
-                                {activeTab === 'refunds' && (
+                                {(activeTab === 'refunds' || activeTab === 'returns') && (
                                     <td>
                                         <button 
                                             className="refund-trigger-btn" 
-                                            onClick={() => setSelectedRefundOrder(order)}
-                                            disabled={order.refundDetails?.refundStatus === 'processed'}
+                                            onClick={() => {
+                                                setSelectedRefundOrder(order);
+                                                setAdminComment(order.refundDetails?.adminComment || '');
+                                            }}
+                                            disabled={order.refundDetails?.refundStatus === 'processed' || order.orderStatus === 'returned'}
                                         >
-                                            {order.refundDetails?.refundStatus === 'processed' ? 'Refunded' : 'Curate Clearing'}
+                                            {(order.refundDetails?.refundStatus === 'processed' || order.orderStatus === 'returned') ? (activeTab === 'returns' ? 'Processed' : 'Refunded') : (activeTab === 'returns' ? 'Verify IQ' : 'Curate Clearing')}
                                         </button>
                                     </td>
                                 )}
@@ -311,7 +353,7 @@ const AdminDashboard = () => {
                         <div className="kpi-meta">{paidOrders.length} verified</div>
                     </div>
                     <div className={`kpi-card ${activeTab === 'users' ? 'active' : ''}`} onClick={() => { setActiveTab('users'); setSubFilter('all'); }}>
-                        <span className="kpi-label">New Audiences</span>
+                        <span className="kpi-label">Users</span>
                         <h2 className="kpi-value">{periodUsers.length}</h2>
                         <div className="kpi-meta">Onboarding count</div>
                     </div>
@@ -321,25 +363,40 @@ const AdminDashboard = () => {
                         <div className="kpi-meta text-danger">Action Required</div>
                     </div>
                     <div className={`kpi-card ${activeTab === 'transactions' ? 'active' : ''}`} onClick={() => { setActiveTab('transactions'); setSubFilter('all'); }}>
-                        <span className="kpi-label">Net Liquidity</span>
-                        <h2 className="kpi-value gold">₹{(totalSales - cancelledOrders.reduce((a, c) => a + (c.refundDetails?.refundAmount || 0), 0)).toLocaleString()}</h2>
-                        <div className="kpi-meta text-gold">Post-reduction</div>
+                        <span className="kpi-label">Order Statistics</span>
+                        <h2 className="kpi-value gold">{periodOrders.length} placed</h2>
+                        <div className="kpi-meta text-gold">{cancelledOrders.length} cancelled</div>
+                    </div>
+                    <div className={`kpi-card ${activeTab === 'deliveries' ? 'active' : ''}`} onClick={() => { setActiveTab('deliveries'); setSubFilter('all'); }}>
+                        <span className="kpi-label">Deliveries</span>
+                        <h2 className="kpi-value" style={{ color: '#0d9488' }}>
+                            {deliveredOrders.length}
+                        </h2>
+                        <div className="kpi-meta" style={{ color: '#0d9488' }}>Fulfilled cycles</div>
+                    </div>
+                    <div className={`kpi-card ${activeTab === 'returns' ? 'active' : ''}`} onClick={() => { setActiveTab('returns'); setSubFilter('all'); }}>
+                        <span className="kpi-label">Returns</span>
+                        <h2 className="kpi-value" style={{ color: '#8a6d3b' }}>
+                            {returnsOrders.length}
+                        </h2>
+                        <div className="kpi-meta" style={{ color: '#8a6d3b' }}>Post-delivery reversals</div>
                     </div>
                 </div>
 
-                <div className="business-intelligence-panel anim from-top">
+                <div className="business-intelligence-panel">
                     <div className="intelligence-grid">
                         <div className="intel-node">
+
                             <span className="node-label">Gross Capital</span>
                             <strong className="node-val">₹{totalSales.toLocaleString()}</strong>
                         </div>
                         <div className="intel-node">
-                            <span className="node-label">Refunds Initiated</span>
-                            <strong className="node-val text-danger">₹{cancelledOrders.reduce((a, c) => a + (c.refundDetails?.refundAmount || 0), 0).toLocaleString()}</strong>
+                            <span className="node-label">Refunds/Returns</span>
+                            <strong className="node-val text-danger">₹{(cancelledOrders.reduce((a, c) => a + (c.refundDetails?.refundAmount || 0), 0) + returnsOrders.reduce((a,c) => a+ (c.total || 0), 0)).toLocaleString()}</strong>
                         </div>
                         <div className="intel-node">
                             <span className="node-label">Profitability Index</span>
-                            <strong className="node-val gold">₹{(totalSales - cancelledOrders.reduce((a, c) => a + (c.refundDetails?.refundAmount || 0), 0)).toLocaleString()}</strong>
+                            <strong className="node-val gold">₹{(totalSales - (cancelledOrders.reduce((a, c) => a + (c.refundDetails?.refundAmount || 0), 0) + returnsOrders.reduce((a,c) => a+ (c.total || 0), 0))).toLocaleString()}</strong>
                         </div>
                     </div>
                 </div>
@@ -349,11 +406,12 @@ const AdminDashboard = () => {
                         <div className="panel-header">
                             <div className="tab-context">
                                 <h3>{activeTab.toUpperCase()} Analysis</h3>
-                                {activeTab !== 'users' && activeTab !== 'refunds' && (
+                                {['sales', 'orders', 'transactions'].includes(activeTab) && (
                                     <div className="sub-filter-strip">
                                         <button className={subFilter === 'all' ? 'active' : ''} onClick={() => setSubFilter('all')}>All</button>
                                         <button className={subFilter === 'confirmed' ? 'active' : ''} onClick={() => setSubFilter('confirmed')}>Confirmed</button>
                                         <button className={subFilter === 'cancelled' ? 'active' : ''} onClick={() => setSubFilter('cancelled')}>Cancelled</button>
+                                        <button className={subFilter === 'returned' ? 'active' : ''} onClick={() => setSubFilter('returned')}>Returned</button>
                                     </div>
                                 )}
                             </div>
@@ -393,30 +451,84 @@ const AdminDashboard = () => {
                     </section>
                 </div>
 
-                {/* --- Refund Clearing Modal --- */}
+                {/* --- Refund/Return Intelligence Modal --- */}
                 {selectedRefundOrder && (
-                    <div className="luxury-modal-overlay">
-                        <div className="clearing-modal anim from-bottom">
-                            <div className="clearing-header">
-                                <h2>Financial Clearing Process</h2>
-                                <p>Initiating manual bank transfer for Order #{selectedRefundOrder.orderNumber}</p>
-                                <div className="cancellation-notice">₹50 cancellation fee will be automatically notified to the user.</div>
+                    <div className="luxury-modal-overlay" style={{ background: 'rgba(0,0,0,0.85)', backdropFilter: 'blur(8px)', zIndex: 10000 }}>
+                        <div className="return-modal" style={{ 
+                            background: '#fff', width: '90%', maxWidth: '600px', padding: '40px', borderRadius: '16px',
+                            boxShadow: '0 25px 50px -12px rgba(0,0,0,0.5)', position: 'relative'
+                        }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '30px' }}>
+                                <div>
+                                    <h2 style={{ fontFamily: 'Playfair Display, serif', fontSize: '2.2rem', color: '#000' }}>{selectedRefundOrder?.orderStatus === 'cancelled' ? 'Refund Policy' : 'Return Intelligence'}</h2>
+                                    <p style={{ color: '#aaa', fontSize: '0.8rem', letterSpacing: '1.5px', textTransform: 'uppercase', marginTop: '5px' }}>Processing Order #{selectedRefundOrder?.orderNumber || 'N/A'}</p>
+                                </div>
+                                <button onClick={() => setSelectedRefundOrder(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '1.8rem', color: '#ccc' }}>×</button>
                             </div>
-                            
-                            <div className="clearing-body">
-                                <div className="bank-details-card">
-                                    <div className="detail-entry"><span>Account Holder</span><strong>{selectedRefundOrder.refundDetails?.accountName || 'N/A'}</strong></div>
-                                    <div className="detail-entry"><span>Account Number</span><strong>{selectedRefundOrder.refundDetails?.accountNumber || 'N/A'}</strong></div>
-                                    <div className="detail-entry"><span>IFSC Protocol</span><strong>{selectedRefundOrder.refundDetails?.ifscCode || 'N/A'}</strong></div>
-                                    <div className="detail-entry"><span>Net Refund</span><strong className="gold">₹{selectedRefundOrder.refundDetails?.refundAmount?.toLocaleString()}</strong></div>
+
+                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px', marginBottom: '30px' }}>
+                                <div style={{ padding: '20px', background: '#f9f9f9', border: '1px solid #eee', borderRadius: '8px' }}>
+                                    <p style={{ fontSize: '0.65rem', color: '#aaa', textTransform: 'uppercase', marginBottom: '8px', fontWeight: 600 }}>User Context</p>
+                                    <p style={{ fontWeight: 700, fontSize: '0.95rem' }}>{selectedRefundOrder?.user?.name || selectedRefundOrder?.shippingAddress?.name || 'Guest'}</p>
+                                </div>
+                                <div style={{ padding: '20px', background: '#f9f9f9', border: '1px solid #eee', borderRadius: '8px' }}>
+                                    <p style={{ fontSize: '0.65rem', color: '#aaa', textTransform: 'uppercase', marginBottom: '8px', fontWeight: 600 }}>Refund Target</p>
+                                    <p style={{ fontWeight: 700, color: '#c5a059', fontSize: '1.1rem' }}>₹{selectedRefundOrder?.refundDetails?.refundAmount?.toLocaleString() || '0'}</p>
                                 </div>
                             </div>
 
-                            <div className="clearing-footer">
-                                <button className="clearing-btn success" disabled={updatingRefund} onClick={() => handleUpdateRefundStatus(selectedRefundOrder._id, 'processed')}>
-                                    {updatingRefund ? 'Processing...' : 'Mark as Refunded'}
+                            {selectedRefundOrder?.refundDetails && (
+                                <div style={{ marginBottom: '30px', padding: '20px', border: '1px solid #eee', background: '#fafafa', borderRadius: '8px' }}>
+                                    <p style={{ fontSize: '0.65rem', color: '#aaa', textTransform: 'uppercase', marginBottom: '12px', fontWeight: 600 }}>Provided Account & Reason</p>
+                                    <div style={{ background: '#fff', padding: '12px', marginBottom: '15px', border: '1px dashed #c5a059', borderRadius: '6px' }}>
+                                        <p style={{ fontSize: '0.7rem', color: '#888', marginBottom: '5px' }}>{selectedRefundOrder?.orderStatus === 'cancelled' ? 'Cancellation' : 'Return'} Reason:</p>
+                                        <p style={{ fontSize: '0.9rem', color: '#000', fontStyle: 'italic', lineHeight: '1.4' }}>"{selectedRefundOrder?.orderStatus === 'cancelled' ? (selectedRefundOrder?.refundDetails?.cancelReason || 'None') : (selectedRefundOrder?.refundDetails?.returnReason || 'None')}"</p>
+                                    </div>
+                                    <div style={{ display: 'grid', gap: '8px', fontSize: '0.9rem' }}>
+                                        <div style={{ display: 'flex', justifyContent: 'space-between' }}><span style={{ color: '#666' }}>Holder:</span><strong>{selectedRefundOrder?.refundDetails?.accountName || 'N/A'}</strong></div>
+                                        <div style={{ display: 'flex', justifyContent: 'space-between' }}><span style={{ color: '#666' }}>Account:</span><strong>{selectedRefundOrder?.refundDetails?.accountNumber || 'N/A'}</strong></div>
+                                        <div style={{ display: 'flex', justifyContent: 'space-between' }}><span style={{ color: '#666' }}>IFSC:</span><strong>{selectedRefundOrder?.refundDetails?.ifscCode || 'N/A'}</strong></div>
+                                    </div>
+                                </div>
+                            )}
+
+                            <div style={{ marginBottom: '30px' }}>
+                                <label style={{ display: 'block', fontSize: '0.65rem', color: '#aaa', textTransform: 'uppercase', marginBottom: '12px', fontWeight: 600 }}>Admin Insight / Comments</label>
+                                <textarea 
+                                    value={adminComment}
+                                    onChange={(e) => setAdminComment(e.target.value)}
+                                    placeholder="Add comments for the customer..."
+                                    style={{
+                                        width: '100%', height: '100px', padding: '15px', borderRadius: '8px',
+                                        border: '1px solid #eee', background: '#f5f5f5', resize: 'none', outline: 'none',
+                                        fontSize: '0.9rem', color: '#333'
+                                    }}
+                                />
+                            </div>
+
+                            <div style={{ display: 'flex', gap: '15px' }}>
+                                <button 
+                                    disabled={updatingRefund}
+                                    style={{ 
+                                        flex: 1, background: '#c5a059', color: '#000', padding: '15px', fontWeight: 700, 
+                                        border: 'none', borderRadius: '8px', cursor: updatingRefund ? 'not-allowed' : 'pointer',
+                                        transition: 'all 0.3s'
+                                    }}
+                                    onClick={() => handleReturnAction(selectedRefundOrder?._id, 'refund')}
+                                >
+                                    {updatingRefund ? 'Processing...' : (selectedRefundOrder?.orderStatus === 'cancelled' ? 'Confirm Refund' : 'Process Return')}
                                 </button>
-                                <button className="clearing-btn" onClick={() => setSelectedRefundOrder(null)}>Cancel</button>
+                                <button 
+                                    disabled={updatingRefund}
+                                    style={{ 
+                                        flex: 1, padding: '15px', background: '#000', color: '#fff', 
+                                        border: 'none', borderRadius: '8px', cursor: 'pointer',
+                                        fontWeight: 600
+                                    }}
+                                    onClick={() => handleReturnAction(selectedRefundOrder?._id, 'later')}
+                                >
+                                    Later
+                                </button>
                             </div>
                         </div>
                     </div>

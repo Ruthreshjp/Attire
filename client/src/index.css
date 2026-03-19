@@ -115,15 +115,25 @@ input, textarea, select { font-family: var(--font-sans); outline: none; }
 /* ============================================================
    SCROLL-TRIGGERED ANIMATIONS
    ============================================================ */
-.anim {
-  opacity: 0;
-  transition: opacity 0.9s var(--ease-out), transform 0.9s var(--ease-out);
-  will-change: transform, opacity;
+.pulse-in {
+  animation: pulseIn 0.5s cubic-bezier(0.19, 1, 0.22, 1) forwards;
 }
-.anim.from-left   { transform: translateX(-60px); }
-.anim.from-right  { transform: translateX(60px); }
-.anim.from-bottom { transform: translateY(50px); }
-.anim.from-top    { transform: translateY(-50px); }
+
+@keyframes pulseIn {
+  from { transform: scale(0.95); opacity: 0; }
+  to { transform: scale(1); opacity: 1; }
+}
+
+.anim {
+  transition: opacity 1s var(--ease-out), transform 1s var(--ease-out);
+  will-change: transform, opacity;
+  opacity: 1 !important; /* Force visibility to prevent blank pages */
+}
+
+.anim.from-left   { transform: translateX(-30px); }
+.anim.from-right  { transform: translateX(30px); }
+.anim.from-bottom { transform: translateY(30px); }
+.anim.from-top    { transform: translateY(-30px); }
 .anim.zoom-in     { transform: scale(0.93); }
 
 

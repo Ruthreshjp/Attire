@@ -1,8 +1,10 @@
 import React, { useState } from 'react';
 import { Client } from "@gradio/client";
+import { useNotification } from '../context/NotificationContext';
 import './TryOnModal.css';
 
 const TryOnModal = ({ isOpen, onClose, product, selectedColor }) => {
+    const { showAlert } = useNotification();
     const [userPhoto, setUserPhoto] = useState(null);
     const [photoPreview, setPhotoPreview] = useState(null);
     const [isGenerating, setIsGenerating] = useState(false);
@@ -21,7 +23,7 @@ const TryOnModal = ({ isOpen, onClose, product, selectedColor }) => {
 
     const handleProceed = async () => {
         if (!userPhoto) {
-            alert('Please upload your photo first');
+            showAlert('Please upload your photo first');
             return;
         }
 

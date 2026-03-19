@@ -75,16 +75,7 @@ const Profile = () => {
         <div className="profile-page-vessel">
             <Navbar />
 
-            <div className="profile-hero-section">
-                <div className="hero-content">
-                    <span className="eyebrow">{user.role === 1 ? 'Administrator Hub' : 'Client Profile'}</span>
-                    <h1>{user.name}</h1>
-                    <div className="profile-status-bar">
-                        <span className="status-item"><span className="dot gold"></span> {user.role === 1 ? 'Executive Authority' : 'Premium Member'}</span>
-                        <span className="status-item"><span className="dot"></span> {user.role === 1 ? 'System Integrity: High' : 'Active Client Session'}</span>
-                    </div>
-                </div>
-            </div>
+
 
             <div className="profile-dashboard-grid">
                 {/* ── Sidebar Navigation ── */}

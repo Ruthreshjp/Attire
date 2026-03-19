@@ -21,7 +21,10 @@
 }
 .hero-content h1 {
     font-family: 'Playfair Display', serif;
-    font-size: 3.5rem; color: #000; margin: 0 0 20px;
+    font-size: 3.5rem; color: #000; margin: 0 0 10px;
+}
+.hero-content .hero-email {
+    font-size: 1rem; color: #888; font-weight: 500; margin: 0;
 }
 .profile-status-bar { display: flex; gap: 30px; }
 .status-item {

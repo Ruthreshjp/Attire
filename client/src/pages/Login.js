@@ -4,6 +4,8 @@ import { AuthContext } from '../context/AuthContext';
 
 const Login = () => {
     const [formData, setFormData] = useState({ email: '', password: '' });
+    const [verificationCode, setVerificationCode] = useState('');
+    const [isUnverified, setIsUnverified] = useState(false);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
     const { login } = useContext(AuthContext);
@@ -21,9 +23,36 @@ const Login = () => {
                 body: JSON.stringify(formData)
             });
             const data = await res.json();
-            if (data.success) { login({ token: data.token, user: data.user }); navigate(from); }
-            else setError(data.message || 'Invalid credentials');
+            if (data.success) { 
+                login({ token: data.token, user: data.user }); 
+                navigate(from); 
+            } else if (data.unverified) {
+                setIsUnverified(true);
+                setError('Your email is not verified. Please enter the code sent to your email.');
+            } else {
+                setError(data.message || 'Invalid credentials');
+            }
         } catch { setError('Connection error. Please try again.'); }
+        finally { setLoading(false); }
+    };
+
+    const handleVerify = async (e) => {
+        e.preventDefault();
+        setLoading(true); setError('');
+        try {
+            const res = await fetch('http://localhost:5000/api/auth/verify-email', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ email: formData.email, code: verificationCode })
+            });
+            const data = await res.json();
+            if (data.success) {
+                login({ token: data.token, user: data.user });
+                navigate(from);
+            } else {
+                setError(data.message || 'Verification failed');
+            }
+        } catch { setError('Something went wrong. Please try again.'); }
         finally { setLoading(false); }
     };
 
@@ -86,39 +115,80 @@ const Login = () => {
                         </div>
                     )}
 
-                    <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
-                        <div className="form-field">
-                            <label>Email Address</label>
-                            <input
-                                type="email" required
-                                placeholder="your@email.com"
-                                value={formData.email}
-                                onChange={e => setFormData({ ...formData, email: e.target.value })}
-                            />
-                        </div>
-                        <div className="form-field">
-                            <label>Password</label>
-                            <input
-                                type="password" required
-                                placeholder="••••••••"
-                                value={formData.password}
-                                onChange={e => setFormData({ ...formData, password: e.target.value })}
-                            />
-                        </div>
-                        <button
-                            type="submit"
-                            disabled={loading}
-                            style={{
-                                padding: '18px', background: loading ? '#888' : '#000',
-                                color: '#c5a059', fontSize: '0.75rem', fontWeight: 800,
-                                letterSpacing: '3px', textTransform: 'uppercase', border: 'none',
-                                cursor: loading ? 'not-allowed' : 'pointer', marginTop: '8px',
-                                transition: 'background 0.3s',
-                            }}
-                        >
-                            {loading ? 'Signing In…' : 'Sign In'}
-                        </button>
-                    </form>
+                    {!isUnverified ? (
+                        <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+                            <div className="form-field">
+                                <label>Email Address</label>
+                                <input
+                                    type="email" required
+                                    placeholder="your@email.com"
+                                    value={formData.email}
+                                    onChange={e => setFormData({ ...formData, email: e.target.value })}
+                                />
+                            </div>
+                            <div className="form-field">
+                                <label>Password</label>
+                                <input
+                                    type="password" required
+                                    placeholder="••••••••"
+                                    value={formData.password}
+                                    onChange={e => setFormData({ ...formData, password: e.target.value })}
+                                />
+                            </div>
+                            <button
+                                type="submit"
+                                disabled={loading}
+                                style={{
+                                    padding: '18px', background: loading ? '#888' : '#000',
+                                    color: '#c5a059', fontSize: '0.75rem', fontWeight: 800,
+                                    letterSpacing: '3px', textTransform: 'uppercase', border: 'none',
+                                    cursor: loading ? 'not-allowed' : 'pointer', marginTop: '8px',
+                                    transition: 'background 0.3s',
+                                }}
+                            >
+                                {loading ? 'Signing In…' : 'Sign In'}
+                            </button>
+                        </form>
+                    ) : (
+                        <form onSubmit={handleVerify} style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+                            <div className="form-field">
+                                <label>Verification Code</label>
+                                <input
+                                    type="text" required
+                                    placeholder="123456"
+                                    value={verificationCode}
+                                    onChange={e => setVerificationCode(e.target.value)}
+                                    style={{
+                                        letterSpacing: '10px',
+                                        textAlign: 'center',
+                                        fontSize: '1.5rem',
+                                        fontWeight: 700
+                                    }}
+                                />
+                            </div>
+                            <button
+                                type="submit"
+                                disabled={loading}
+                                style={{
+                                    padding: '18px', background: loading ? '#888' : '#000',
+                                    color: '#c5a059', fontSize: '0.75rem', fontWeight: 800,
+                                    letterSpacing: '3px', textTransform: 'uppercase', border: 'none',
+                                    cursor: loading ? 'not-allowed' : 'pointer', marginTop: '8px',
+                                    transition: 'background 0.3s',
+                                }}
+                            >
+                                {loading ? 'Verifying…' : 'Verify and Login'}
+                            </button>
+                            <button 
+                                type="button" 
+                                onClick={() => setIsUnverified(false)}
+                                style={{
+                                    background: 'none', border: 'none', color: '#666', 
+                                    textDecoration: 'underline', cursor: 'pointer', fontSize: '0.8rem'
+                                }}
+                            >Back to Login</button>
+                        </form>
+                    )}
 
                     <p style={{ marginTop: '36px', color: '#aaa', fontSize: '0.8rem', textAlign: 'center' }}>
                         By signing in you agree to our{' '}

@@ -33,7 +33,9 @@ router.post('/create-order', auth, async (req, res) => {
         res.json({ success: true, order });
     } catch (err) {
         console.error('Razorpay Order Error:', err);
-        res.status(500).json({ success: false, message: 'Razorpay Error' });
+        const status = err.response ? err.response.status : 500;
+        const message = err.response ? err.response.data : (err.message || 'Razorpay Error');
+        res.status(status).json({ success: false, message });
     }
 });
 
@@ -97,8 +99,47 @@ router.post('/verify', auth, async (req, res) => {
                 const createdOrder = await order.save();
                 console.log('Order Saved!', createdOrder._id);
 
-                // Clear user's cart
                 const user = await User.findById(req.user.id);
+
+                // Send Confirmation Emails in background
+                (async () => {
+                    try {
+                        const { generateInvoice } = require('../utils/pdfGenerator');
+                        const { sendOrderConfirmation, sendAdminNewOrder } = require('../utils/emailService');
+                        
+                        const pdfBuffer = await generateInvoice(createdOrder);
+                        
+                        // Send to user
+                        if (user && user.email) {
+                            sendOrderConfirmation(user.email, createdOrder, pdfBuffer).catch(e => console.error('BG Payment confirm fail:', e));
+                        }
+                        
+                        // Send to admin
+                        sendAdminNewOrder(createdOrder, pdfBuffer).catch(e => console.error('BG Admin payment notify fail:', e));
+                    } catch (innerErr) {
+                        console.error('BG Payment Processing Error:', innerErr);
+                    }
+                })();
+
+                // Update Product Stock and Sold count
+                (async () => {
+                    try {
+                        const Product = require('../models/Product');
+                        for (const item of orderData.items) {
+                            await Product.findByIdAndUpdate(item.id || item._id, {
+                                $inc: { 
+                                    stock: -item.quantity,
+                                    sold: item.quantity
+                                }
+                            });
+                        }
+                        console.log('Stock and Sold counts updated');
+                    } catch (stockErr) {
+                        console.error('Error updating stock/sold:', stockErr);
+                    }
+                })();
+
+                // Clear user's cart
                 if (user) {
                     user.cart = [];
                     await user.save();

@@ -122,6 +122,11 @@ const OffersCarousel = () => {
                                             <span className="offer-old-price">₹{original.toLocaleString('en-IN')}</span>
                                         )}
                                     </div>
+                                    {offer.couponCode && (
+                                        <div className="offer-code-badge" style={{ marginTop: '5px', fontSize: '0.7rem', background: '#c5a059', color: '#000', padding: '2px 8px', borderRadius: '4px', fontWeight: 700, display: 'inline-block' }}>
+                                            CODE: {offer.couponCode}
+                                        </div>
+                                    )}
                                 </div>
                             </div>
                         </div>

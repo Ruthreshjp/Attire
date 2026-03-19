@@ -2,25 +2,48 @@ import React, { useState, useContext, useEffect } from 'react';
 import Navbar from '../components/Navbar';
 import { AuthContext } from '../context/AuthContext';
 import './Orders.css';
+import { useNotification } from '../context/NotificationContext';
 import axios from 'axios';
 
 const STATUS_CLASS = (s) => {
     if (!s) return '';
     s = s.toLowerCase();
     if (s === 'cancelled') return 'cancelled';
-    if (s === 'delivered') return 'delivered';
+    if (s === 'delivered' || s === 'processed') return 'delivered';
     if (s === 'shipped') return 'shipped';
+    if (s === 'returned') return 'returned';
+    if (s === 'return_pending') return 'return_pending';
     return 'pending';
 };
 
+const COURIER_ADDRESS = `Attire The complete mens wear, 186, Erode main Road, Near soorya hospital, Tiruchengode - 637211 phone: 8838722957`;
+
 const MyOrders = () => {
     const { user, isAuthenticated } = useContext(AuthContext);
+    const { showAlert } = useNotification();
     const [orders, setOrders] = useState([]);
     const [loading, setLoading] = useState(true);
     const [selectedOrder, setSelectedOrder] = useState(null);
-    const [cancelForm, setCancelForm] = useState({ accountName: '', accountNumber: '', ifscCode: '' });
+    const [cancelForm, setCancelForm] = useState({ accountName: '', accountNumber: '', ifscCode: '', reason: '' });
+    const [returnForm, setReturnForm] = useState({ accountName: '', accountNumber: '', ifscCode: '', reason: '' });
     const [isCancelling, setIsCancelling] = useState(false);
+    const [isReturning, setIsReturning] = useState(false);
     const [activeFilter, setActiveFilter] = useState('All');
+
+    // Find unique previous bank details from history
+    const bankHistory = Array.from(new Set(orders
+        .filter(o => o.refundDetails?.accountNumber)
+        .map(o => JSON.stringify({
+            accountName: o.refundDetails.accountName,
+            accountNumber: o.refundDetails.accountNumber,
+            ifscCode: o.refundDetails.ifscCode
+        }))
+    )).map(s => JSON.parse(s));
+
+    const fillDetails = (type, details) => {
+        if (type === 'cancel') setCancelForm(prev => ({ ...prev, ...details }));
+        if (type === 'return') setReturnForm(prev => ({ ...prev, ...details }));
+    };
 
     const canCancel = (date) => {
         const diffDays = Math.ceil(Math.abs(new Date() - new Date(date)) / (1000 * 60 * 60 * 24));
@@ -28,8 +51,8 @@ const MyOrders = () => {
     };
 
     const handleCancelOrder = async (orderId) => {
-        if (!cancelForm.accountName || !cancelForm.accountNumber || !cancelForm.ifscCode) {
-            alert('Please fill all bank details for refund'); return;
+        if (!cancelForm.accountName || !cancelForm.accountNumber || !cancelForm.ifscCode || !cancelForm.reason) {
+            showAlert('Please fill all bank details and provide a reason'); return;
         }
         try {
             const res = await axios.put(`http://localhost:5000/api/orders/${orderId}/cancel`, cancelForm, {
@@ -37,12 +60,33 @@ const MyOrders = () => {
             });
             if (res.data.success) {
                 setOrders(orders.map(o => o._id === orderId ? res.data.order : o));
-                setSelectedOrder(res.data.order);
-                setIsCancelling(false);
-                alert(res.data.message);
+                showAlert(res.data.message, 'success', () => {
+                    setIsCancelling(false);
+                    setSelectedOrder(null);
+                });
             }
         } catch (err) {
-            alert(err.response?.data?.message || 'Error cancelling order');
+            showAlert(err.response?.data?.message || 'Error cancelling order', 'error');
+        }
+    };
+
+    const handleReturnOrder = async (orderId) => {
+        if (!returnForm.accountName || !returnForm.accountNumber || !returnForm.ifscCode || !returnForm.reason) {
+            showAlert('Please fill all bank details and provide a reason'); return;
+        }
+        try {
+            const res = await axios.put(`http://localhost:5000/api/orders/${orderId}/return`, returnForm, {
+                headers: { 'x-auth-token': localStorage.getItem('token') }
+            });
+            if (res.data.success) {
+                setOrders(orders.map(o => o._id === orderId ? res.data.order : o));
+                showAlert(res.data.message, 'success', () => {
+                    setIsReturning(false);
+                    setSelectedOrder(null);
+                });
+            }
+        } catch (err) {
+            showAlert(err.response?.data?.message || 'Error initiating return', 'error');
         }
     };
 
@@ -64,7 +108,8 @@ const MyOrders = () => {
     const filteredOrders = activeFilter === 'All' ? orders
         : orders.filter(o => {
             if (activeFilter === 'Cancelled') return o.orderStatus === 'cancelled';
-            if (activeFilter === 'Confirmed') return o.orderStatus !== 'cancelled';
+            if (activeFilter === 'Confirmed') return o.orderStatus !== 'cancelled' && o.orderStatus !== 'returned' && o.orderStatus !== 'return_pending';
+            if (activeFilter === 'Returned') return o.orderStatus === 'returned' || o.orderStatus === 'return_pending';
             return true;
         });
 
@@ -114,7 +159,7 @@ const MyOrders = () => {
                         <h3>Items in this Order</h3>
                     </div>
                     {selectedOrder.items.map((item, idx) => (
-                        <div key={idx} className="order-item-row">
+                        <div key={idx} className="order-item-row" onClick={() => window.location.href = `/product/${item.product}`} style={{ cursor: 'pointer' }}>
                             <img src={item.image} alt={item.name} className="order-item-img" />
                             <div className="order-item-detail" style={{ flex: 1 }}>
                                 <h4>{item.name}</h4>
@@ -130,17 +175,65 @@ const MyOrders = () => {
                 </div>
 
                 {/* Cancel Section */}
-                {selectedOrder.orderStatus !== 'cancelled' && canCancel(selectedOrder.createdAt) && (
+                {selectedOrder.orderStatus !== 'cancelled' && 
+                 selectedOrder.orderStatus !== 'returned' && 
+                 selectedOrder.orderStatus !== 'return_pending' && 
+                 selectedOrder.orderStatus !== 'delivered' && 
+                 selectedOrder.orderStatus !== 'processed' && 
+                 canCancel(selectedOrder.createdAt) && (
                     <div className="cancel-order-section">
                         <h4>Cancel This Order</h4>
                         {!isCancelling ? (
-                            <button className="cancel-btn-danger" onClick={() => setIsCancelling(true)}>Request Cancellation</button>
+                            <button className="cancel-btn-danger" onClick={() => { setIsCancelling(true); setIsReturning(false); }}>Request Cancellation</button>
                         ) : (
                             <>
                                 <div className="cancel-warning">
-                                    ⚠️ <strong>Important:</strong> A processing fee of <strong>₹50</strong> will be deducted from your refund amount. Please provide your bank details below to proceed.
+                                    ⚠️ <strong>Important:</strong> A processing fee of <strong>₹50</strong> will be deducted from your refund amount. Please provide details below to proceed.
                                 </div>
                                 <div className="bank-fields">
+                                    {bankHistory.length > 0 && (
+                                        <div className="bank-history-vessel" style={{ gridColumn: '1 / -1', marginBottom: '20px' }}>
+                                            <p style={{ fontSize: '0.7rem', color: '#aaa', textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '12px' }}>Select Saved Account</p>
+                                            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: '12px' }}>
+                                                {bankHistory.map((bank, idx) => {
+                                                    const isSelected = cancelForm.accountNumber === bank.accountNumber;
+                                                    return (
+                                                        <div 
+                                                            key={idx} 
+                                                            onClick={() => fillDetails('cancel', bank)}
+                                                            style={{ 
+                                                                padding: '15px', border: isSelected ? '2px solid #000' : '1px solid #eee', 
+                                                                borderRadius: '8px', cursor: 'pointer', background: isSelected ? '#fafafa' : '#fff',
+                                                                position: 'relative', transition: 'all 0.2s'
+                                                            }}
+                                                        >
+                                                            <div style={{ position: 'absolute', top: '10px', right: '10px' }}>
+                                                                <div style={{ width: '14px', height: '14px', borderRadius: '50%', border: '1px solid #ddd', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                                                    {isSelected && <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#000' }} />}
+                                                                </div>
+                                                            </div>
+                                                            <p style={{ fontWeight: 700, fontSize: '0.85rem', marginBottom: '4px' }}>{bank.accountName}</p>
+                                                            <p style={{ fontSize: '0.75rem', color: '#666' }}>{bank.accountNumber.replace(/.(?=.{4})/g, '*')}</p>
+                                                            <p style={{ fontSize: '0.7rem', color: '#aaa' }}>{bank.ifscCode}</p>
+                                                        </div>
+                                                    );
+                                                })}
+                                            </div>
+                                            <div style={{ marginTop: '15px', display: 'flex', alignItems: 'center', gap: '10px' }}>
+                                                <span style={{ fontSize: '0.7rem', color: '#bbb' }}>or use a different account below</span>
+                                                <div style={{ flex: 1, height: '1px', background: '#eee' }} />
+                                            </div>
+                                        </div>
+                                    )}
+                                    <div className="form-group" style={{ gridColumn: '1 / -1' }}>
+                                        <label>Reason for Cancellation <span style={{ color: '#f43f5e' }}>*</span></label>
+                                        <textarea 
+                                            placeholder="Mandatory: Please tell us why you are cancelling..." 
+                                            value={cancelForm.reason} 
+                                            onChange={e => setCancelForm({ ...cancelForm, reason: e.target.value })}
+                                            style={{ width: '100%', height: '80px', padding: '12px', border: '1px solid #eee', borderRadius: '4px', resize: 'none' }}
+                                        />
+                                    </div>
                                     <div className="form-group">
                                         <label>Account Holder Name</label>
                                         <input type="text" placeholder="Full name" value={cancelForm.accountName} onChange={e => setCancelForm({ ...cancelForm, accountName: e.target.value })} />
@@ -163,14 +256,95 @@ const MyOrders = () => {
                     </div>
                 )}
 
-                {/* Cancelled Notice */}
-                {selectedOrder.orderStatus === 'cancelled' && (
+                {/* Return Section */}
+                {(selectedOrder.orderStatus === 'delivered' || selectedOrder.orderStatus === 'processed') && (
+                    <div className="cancel-order-section" style={{ borderColor: '#c5a059' }}>
+                        <h4 style={{ color: '#c5a059' }}>Return Product</h4>
+                        {!isReturning ? (
+                            <button className="view-detail-btn" style={{ background: '#000', color: '#c5a059', border: 'none' }} onClick={() => { setIsReturning(true); setIsCancelling(false); }}>Initiate Return</button>
+                        ) : (
+                            <>
+                                <div className="cancel-warning" style={{ background: '#fdfaf3', borderLeftColor: '#c5a059', color: '#8a6d3b' }}>
+                                    💡 <strong>Return Policy:</strong> Kindly courier the product to:<br/>
+                                    <strong>{COURIER_ADDRESS}</strong><br/>
+                                    Your amount will be refunded after we receive the product and completion of quality checks.
+                                </div>
+                                <div className="bank-fields">
+                                    {bankHistory.length > 0 && (
+                                        <div className="bank-history-vessel" style={{ gridColumn: '1 / -1', marginBottom: '20px' }}>
+                                            <p style={{ fontSize: '0.7rem', color: '#aaa', textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '12px' }}>Select Saved Account</p>
+                                            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: '12px' }}>
+                                                {bankHistory.map((bank, idx) => {
+                                                    const isSelected = returnForm.accountNumber === bank.accountNumber;
+                                                    return (
+                                                        <div 
+                                                            key={idx} 
+                                                            onClick={() => fillDetails('return', bank)}
+                                                            style={{ 
+                                                                padding: '15px', border: isSelected ? '2px solid #c5a059' : '1px solid #eee', 
+                                                                borderRadius: '8px', cursor: 'pointer', background: isSelected ? '#fffdf7' : '#fff',
+                                                                position: 'relative', transition: 'all 0.2s'
+                                                            }}
+                                                        >
+                                                            <div style={{ position: 'absolute', top: '10px', right: '10px' }}>
+                                                                <div style={{ width: '14px', height: '14px', borderRadius: '50%', border: '1px solid #ddd', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                                                    {isSelected && <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#c5a059' }} />}
+                                                                </div>
+                                                            </div>
+                                                            <p style={{ fontWeight: 700, fontSize: '0.85rem', marginBottom: '4px' }}>{bank.accountName}</p>
+                                                            <p style={{ fontSize: '0.75rem', color: '#666' }}>{bank.accountNumber.replace(/.(?=.{4})/g, '*')}</p>
+                                                            <p style={{ fontSize: '0.7rem', color: '#aaa' }}>{bank.ifscCode}</p>
+                                                        </div>
+                                                    );
+                                                })}
+                                            </div>
+                                            <div style={{ marginTop: '15px', display: 'flex', alignItems: 'center', gap: '10px' }}>
+                                                <span style={{ fontSize: '0.7rem', color: '#bbb' }}>or use a different account below</span>
+                                                <div style={{ flex: 1, height: '1px', background: '#eee' }} />
+                                            </div>
+                                        </div>
+                                    )}
+                                    <div className="form-group" style={{ gridColumn: '1 / -1' }}>
+                                        <label>Reason for Return <span style={{ color: '#f43f5e' }}>*</span></label>
+                                        <textarea 
+                                            placeholder="Mandatory: Please tell us why you are returning this product..." 
+                                            value={returnForm.reason} 
+                                            onChange={e => setReturnForm({ ...returnForm, reason: e.target.value })}
+                                            style={{ width: '100%', height: '80px', padding: '12px', border: '1px solid #eee', borderRadius: '4px', resize: 'none' }}
+                                        />
+                                    </div>
+                                    <div className="form-group">
+                                        <label>Account Holder Name</label>
+                                        <input type="text" placeholder="Full name" value={returnForm.accountName} onChange={e => setReturnForm({ ...returnForm, accountName: e.target.value })} />
+                                    </div>
+                                    <div className="form-group">
+                                        <label>Account Number</label>
+                                        <input type="text" placeholder="Bank account number" value={returnForm.accountNumber} onChange={e => setReturnForm({ ...returnForm, accountNumber: e.target.value })} />
+                                    </div>
+                                    <div className="form-group">
+                                        <label>IFSC Code</label>
+                                        <input type="text" placeholder="e.g. SBIN0001234" value={returnForm.ifscCode} onChange={e => setReturnForm({ ...returnForm, ifscCode: e.target.value })} />
+                                    </div>
+                                </div>
+                                <div style={{ display: 'flex', gap: '12px', marginTop: '8px' }}>
+                                    <button className="view-detail-btn" style={{ background: '#000', color: '#c5a059', border: 'none' }} onClick={() => handleReturnOrder(selectedOrder._id)}>Confirm Return</button>
+                                    <button className="view-detail-btn" onClick={() => setIsReturning(false)}>Cancel</button>
+                                </div>
+                            </>
+                        )}
+                    </div>
+                )}
+
+                {/* Cancelled / Returned Notice */}
+                {(selectedOrder.orderStatus === 'cancelled' || selectedOrder.orderStatus === 'returned' || selectedOrder.orderStatus === 'return_pending') && (
                     <div style={{ padding: '40px', background: '#fafafa', border: '1px solid #eee' }}>
-                        <h4 style={{ color: '#000', marginBottom: '20px', fontFamily: 'Playfair Display, serif', fontSize: '1.4rem' }}>Refund Repository</h4>
+                        <h4 style={{ color: '#000', marginBottom: '20px', fontFamily: 'Playfair Display, serif', fontSize: '1.4rem' }}>
+                            {selectedOrder.orderStatus === 'cancelled' ? 'Refund Repository' : 'Return Intelligence'}
+                        </h4>
                         
                         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '30px', marginBottom: '30px' }}>
                             <div>
-                                <p style={{ fontSize: '0.65rem', letterSpacing: '2px', textTransform: 'uppercase', color: '#aaa', fontWeight: 800, marginBottom: '8px' }}>Asset Status</p>
+                                <p style={{ fontSize: '0.65rem', letterSpacing: '2px', textTransform: 'uppercase', color: '#aaa', fontWeight: 800, marginBottom: '8px' }}>Status</p>
                                 <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                                     <span className={`status-pill ${selectedOrder.refundDetails?.refundStatus || 'none'}`}>
                                         {selectedOrder.refundDetails?.refundStatus === 'none' ? 'Pending Clearance' 
@@ -188,6 +362,13 @@ const MyOrders = () => {
                                 </p>
                             </div>
                         </div>
+
+                        {selectedOrder.refundDetails?.adminComment && (
+                            <div style={{ marginBottom: '30px', padding: '20px', background: '#fdfaf3', border: '1px solid #f1e4c7', borderRadius: '4px' }}>
+                                <p style={{ fontSize: '0.65rem', letterSpacing: '2px', textTransform: 'uppercase', color: '#8a6d3b', fontWeight: 800, marginBottom: '8px' }}>Admin Comments</p>
+                                <p style={{ fontSize: '0.9rem', color: '#555', lineHeight: '1.4' }}>{selectedOrder.refundDetails.adminComment}</p>
+                            </div>
+                        )}
 
                         {selectedOrder.refundDetails?.refundStatus !== 'none' && (
                             <div className="bank-details-card" style={{ background: '#fff', border: '1px solid #eee', padding: '24px', borderRadius: '8px' }}>
@@ -217,7 +398,7 @@ const MyOrders = () => {
             <div style={{ padding: '40px 8%' }}>
                 {/* Filter pills */}
                 <div className="orders-filters">
-                    {['All', 'Confirmed', 'Cancelled'].map(f => (
+                    {['All', 'Confirmed', 'Returned', 'Cancelled'].map(f => (
                         <button key={f} className={`filter-pill${activeFilter === f ? ' active' : ''}`} onClick={() => setActiveFilter(f)}>
                             {f}
                         </button>

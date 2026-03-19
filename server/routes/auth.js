@@ -17,19 +17,59 @@ router.post('/register', async (req, res) => {
             return res.status(400).json({ success: false, message: 'User already exists' });
         }
 
+        // Generate verification code
+        const verificationCode = Math.floor(100000 + Math.random() * 900000).toString();
+
         // Create new user
         user = new User({
             name,
             email,
             password,
             role: 0, // Default to customer
-            lastLogin: Date.now()
+            lastLogin: Date.now(),
+            isVerified: false,
+            verificationCode
         });
 
         // Hash password
         const salt = await bcrypt.genSalt(10);
         user.password = await bcrypt.hash(password, salt);
 
+        await user.save();
+
+        // Send verification email in background
+        const { sendVerificationCode } = require('../utils/emailService');
+        sendVerificationCode(email, verificationCode).catch(err => console.error('BG Verification email error:', err));
+
+        res.json({
+            success: true,
+            message: 'Verification code sent to your email. Please verify to continue.',
+            email: user.email
+        });
+    } catch (err) {
+        console.error(err.message);
+        res.status(500).send('Server Error');
+    }
+});
+
+// @route   POST /api/auth/verify-email
+// @desc    Verify user email with code
+// @access  Public
+router.post('/verify-email', async (req, res) => {
+    try {
+        const { email, code } = req.body;
+
+        let user = await User.findOne({ email });
+        if (!user) {
+            return res.status(404).json({ success: false, message: 'User not found' });
+        }
+
+        if (user.verificationCode !== code) {
+            return res.status(400).json({ success: false, message: 'Invalid verification code' });
+        }
+
+        user.isVerified = true;
+        user.verificationCode = '';
         await user.save();
 
         // Create token
@@ -40,6 +80,10 @@ router.post('/register', async (req, res) => {
             }
         };
 
+        // Send Welcome Email in background
+        const { sendWelcomeEmail } = require('../utils/emailService');
+        sendWelcomeEmail(user.email, user.name).catch(err => console.error('BG Welcome email error:', err));
+
         jwt.sign(
             payload,
             process.env.JWT_SECRET || 'secret',
@@ -48,12 +92,14 @@ router.post('/register', async (req, res) => {
                 if (err) throw err;
                 res.json({
                     success: true,
+                    message: 'Email verified successfully',
                     token,
                     user: {
                         id: user.id,
                         name: user.name,
                         email: user.email,
-                        role: user.role
+                        role: user.role,
+                        createdAt: user.createdAt
                     }
                 });
             }
@@ -75,6 +121,23 @@ router.post('/login', async (req, res) => {
         let user = await User.findOne({ email });
         if (!user) {
             return res.status(400).json({ success: false, message: 'Invalid Credentials' });
+        }
+
+        if (!user.isVerified) {
+            // Generate new verification code
+            const verificationCode = Math.floor(100000 + Math.random() * 900000).toString();
+            user.verificationCode = verificationCode;
+            await user.save();
+            
+            // Send verification email in background
+            const { sendVerificationCode } = require('../utils/emailService');
+            sendVerificationCode(email, verificationCode).catch(err => console.error('BG Login-resend email error:', err));
+
+            return res.status(400).json({ 
+                success: false, 
+                message: 'We have sent a new verification code to your email. Please verify your email before logging in.', 
+                unverified: true 
+            });
         }
 
         // Check password
@@ -108,7 +171,8 @@ router.post('/login', async (req, res) => {
                         id: user.id,
                         name: user.name,
                         email: user.email,
-                        role: user.role
+                        role: user.role,
+                        createdAt: user.createdAt
                     }
                 });
             }
@@ -159,7 +223,18 @@ router.put('/profile', auth, async (req, res) => {
             { new: true }
         ).select('-password');
 
-        res.json({ success: true, user });
+        res.json({ 
+            success: true, 
+            user: {
+                id: user._id,
+                name: user.name,
+                email: user.email,
+                role: user.role,
+                phone: user.phone,
+                address: user.address,
+                createdAt: user.createdAt
+            }
+        });
     } catch (err) {
         console.error(err.message);
         res.status(500).send('Server Error');

@@ -6,13 +6,14 @@ import { useCart } from '../context/CartContext';
 import { useWishlist } from '../context/WishlistContext';
 import TryOnModal from '../components/TryOnModal';
 import useScrollAnimation from '../utils/useScrollAnimation';
+import { useNotification } from '../context/NotificationContext';
 
 const ProductDetail = () => {
     const { id } = useParams();
     const navigate = useNavigate();
-    const { user } = useContext(AuthContext);
-    const { addToCart, cartItems } = useCart();
+    const { addToCart } = useCart();
     const { toggleWishlist, isWishlisted } = useWishlist();
+    const { showAlert } = useNotification();
     useScrollAnimation();
 
     const [product, setProduct] = useState(null);
@@ -20,7 +21,6 @@ const ProductDetail = () => {
     const [selectedImage, setSelectedImage] = useState(0);
     const [selectedSize, setSelectedSize] = useState('');
     const [selectedColor, setSelectedColor] = useState('');
-    const [quantity, setQuantity] = useState(1);
     const [addedToCart, setAddedToCart] = useState(false);
     const [isTryOnOpen, setIsTryOnOpen] = useState(false);
     const [error, setError] = useState(null);
@@ -33,7 +33,7 @@ const ProductDetail = () => {
                 const data = await response.json();
                 if (data.success) {
                     setProduct(data.product);
-                    if (data.product.sizes?.length > 0) setSelectedSize(data.product.sizes[0]);
+                    // if (data.product.sizes?.length > 0) setSelectedSize(data.product.sizes[0]);
                     if (data.product.colors?.length > 0) setSelectedColor(data.product.colors[0].name);
 
                     // Track Recently Viewed
@@ -61,14 +61,28 @@ const ProductDetail = () => {
     }, [id]);
 
     const handleAddToCart = () => {
-        if (!selectedSize || !selectedColor) return;
+        if (!selectedSize) {
+            showAlert('Please specify your desired size before adding to cart.');
+            return;
+        }
+        if (!selectedColor) {
+            showAlert('Please select a color finish.');
+            return;
+        }
         addToCart(product, selectedSize, selectedColor);
         setAddedToCart(true);
         setTimeout(() => setAddedToCart(false), 2000);
     };
 
     const handleBuyNow = () => {
-        if (!selectedSize || !selectedColor) return;
+        if (!selectedSize) {
+            showAlert('Please specify your desired size before purchasing.');
+            return;
+        }
+        if (!selectedColor) {
+            showAlert('Please select a color finish.');
+            return;
+        }
         addToCart(product, selectedSize, selectedColor);
         navigate('/cart');
     };
@@ -86,9 +100,9 @@ const ProductDetail = () => {
         </div>
     );
 
-    const price = product.isSpecialOffer && product.specialPrice ? product.specialPrice : product.price;
-    const originalPrice = product.originalPrice;
-    const hasDiscount = originalPrice && originalPrice > price;
+    const price = (product.isSpecialOffer ? product.price || product.originalPrice : (product.specialPrice || product.price)) || 0;
+    const originalPrice = product.originalPrice || product.price;
+    const hasDiscount = originalPrice && originalPrice > price && !product.isSpecialOffer;
     
     const colorImages = product.colors?.find(c => c.name === selectedColor)?.images;
     const currentImages = (colorImages && colorImages.length > 0) ? colorImages : (product.images || []);
@@ -153,10 +167,10 @@ const ProductDetail = () => {
                                     </>
                                 )}
                             </div>
-                            {product.promoCode && (
+                            {product.couponCode && (
                                 <div className="detail-promo-badge">
                                     <span className="p-icon">🏷️</span>
-                                    <span>Use code <strong>{product.promoCode}</strong> for special reduction</span>
+                                    <span>Use code <strong>{product.couponCode}</strong> for extra <strong>{product.extraDiscount || Math.round(((price - (product.specialPrice || price * 0.9)) / price) * 100)}%</strong> discount</span>
                                 </div>
                             )}
                         </div>

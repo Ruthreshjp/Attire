@@ -43,8 +43,9 @@ const Home = () => {
         }).catch(console.error);
     }, []);
 
-    const trending = products.filter(p => !p.isNewArrival).slice(0, 8);
-    const newArrivals = products.filter(p => p.isNewArrival).slice(0, 8);
+    const sortByNewest = (a, b) => new Date(b.createdAt) - new Date(a.createdAt);
+    const trending = products.filter(p => !p.isNewArrival).sort(sortByNewest).slice(0, 8);
+    const newArrivals = products.filter(p => p.isNewArrival).sort(sortByNewest).slice(0, 8);
 
     return (
         <div style={{ paddingTop: '80px' }}>

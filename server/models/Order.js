@@ -65,7 +65,7 @@ const orderSchema = new mongoose.Schema({
     },
     orderStatus: {
         type: String,
-        enum: ['pending', 'processing', 'shipped', 'delivered', 'cancelled'],
+        enum: ['pending', 'processing', 'shipped', 'delivered', 'cancelled', 'processed', 'returned', 'return_pending'],
         default: 'pending'
     },
     trackingNumber: {
@@ -88,7 +88,19 @@ const orderSchema = new mongoose.Schema({
             enum: ['pending', 'initiated', 'processing', 'processed', 'none'],
             default: 'none'
         },
-        refundAmount: Number
+        refundAmount: Number,
+        adminComment: {
+            type: String,
+            default: ''
+        },
+        cancelReason: {
+            type: String,
+            default: ''
+        },
+        returnReason: {
+            type: String,
+            default: ''
+        }
     },
     expectedDelivery: Date
 }, {

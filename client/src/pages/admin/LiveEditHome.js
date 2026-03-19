@@ -6,6 +6,7 @@ import { DEFAULT_HOME_DATA } from '../../utils/defaultContent';
 import HeroCarousel from '../../components/HeroCarousel';
 import ProductQueue from '../../components/ProductQueue';
 import Navbar from '../../components/Navbar';
+import { useNotification } from '../../context/NotificationContext';
 import './LiveEdit.css';
 
 const LiveEditHome = () => {
@@ -14,6 +15,7 @@ const LiveEditHome = () => {
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
     const [isDirty, setIsDirty] = useState(false);
+    const { showAlert } = useNotification();
 
     useEffect(() => {
         const fetchData = async () => {
@@ -123,10 +125,10 @@ const LiveEditHome = () => {
                 headers: { 'x-auth-token': token }
             });
 
-            alert('✨ Home page globally updated!');
+            showAlert('✨ Home page globally updated!');
             setIsDirty(false);
         } catch (err) {
-            alert('Failed to save: ' + (err.response?.data?.message || err.message));
+            showAlert('Failed to save: ' + (err.response?.data?.message || err.message));
         } finally {
             setSaving(false);
         }

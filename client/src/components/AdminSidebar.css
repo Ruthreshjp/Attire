@@ -136,3 +136,34 @@
     color: #000;
 }
 .storefront-link:hover .link-icon { filter: brightness(0); }
+
+/* --- Admin Profile Meta --- */
+.admin-profile-meta {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    width: 100%;
+}
+.admin-initial-vessel {
+    width: 32px; height: 32px;
+    background: #c5a059; color: #000;
+    display: flex; align-items: center; justify-content: center;
+    border-radius: 50%; font-family: 'Playfair Display', serif;
+    font-size: 0.85rem; font-weight: 800; border: 1px solid #fff;
+    flex-shrink: 0;
+}
+.admin-meta-info {
+    display: flex; flex-direction: column; 
+    overflow: hidden;
+    line-height: 1.2;
+}
+.admin-u-name {
+    font-size: 0.8rem; font-weight: 800; color: #fff;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.admin-u-role {
+    font-size: 0.6rem; color: rgba(255,255,255,0.4); font-weight: 700;
+    text-transform: uppercase; letter-spacing: 1px;
+}
+.profile-v-link.active .admin-initial-vessel { border-color: #c5a059; }
+.profile-v-link:hover .admin-u-name { color: #c5a059; }

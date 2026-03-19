@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import AdminSidebar from '../../components/AdminSidebar';
+import { useNotification } from '../../context/NotificationContext';
 import './AdminDashboard.css';
 
 // Reusable Image Input with URL/Upload toggle
@@ -86,6 +87,7 @@ const AdminCarousel = () => {
 
     const [homeContent, setHomeContent] = useState(DEFAULT_HOME_CONTENT);
     const [isDirty, setIsDirty] = useState(false);
+    const { showAlert } = useNotification();
 
     const markDirty = () => setIsDirty(true);
 
@@ -111,7 +113,7 @@ const AdminCarousel = () => {
             }
         } catch (err) {
             console.error('Error fetching slides:', err);
-            alert('Critial: Could not fetch home page content from server. Please check if the backend is running on port 5000.');
+            showAlert('Critial: Could not fetch home page content from server. Please check if the backend is running on port 5000.');
         } finally {
             setLoading(false);
         }
@@ -120,7 +122,7 @@ const AdminCarousel = () => {
     const saveToBackend = async (currentSlides, currentContent = null) => {
         const token = localStorage.getItem('token');
         if (!token) {
-            alert('Session expired. Please log in again.');
+            showAlert('Session expired. Please log in again.');
             window.location.href = '/login';
             return;
         }
@@ -196,10 +198,10 @@ const AdminCarousel = () => {
             }
 
             setIsDirty(false);
-            alert('✨ Success: Home page content updated successfully!');
+            showAlert('✨ Success: Home page content updated successfully!');
         } catch (err) {
             console.error('Save error details:', err);
-            alert('Failed to save changes: ' + err.message);
+            showAlert('Failed to save changes: ' + err.message);
         } finally {
             setSaving(false);
         }

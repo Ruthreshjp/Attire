@@ -3,6 +3,7 @@ import Navbar from '../components/Navbar';
 import { useNavigate, Link } from 'react-router-dom';
 import { useCart } from '../context/CartContext';
 import { AuthContext } from '../context/AuthContext';
+import { useNotification } from '../context/NotificationContext';
 import axios from 'axios';
 import './Cart.css';
 
@@ -10,12 +11,13 @@ const Cart = () => {
     const navigate = useNavigate();
     const { cartItems, removeFromCart, updateQuantity, cartTotal, clearCart } = useCart();
     const { user, isAuthenticated } = useContext(AuthContext);
+    const { showAlert } = useNotification();
 
     const [couponCode, setCouponCode] = useState('');
     const [appliedCoupon, setAppliedCoupon] = useState(null);
     const [couponError, setCouponError] = useState('');
 
-    const shipping = cartTotal > 2000 ? 0 : 150;
+    const shipping = 0; // Free shipping for all orders!
     
     const handleApplyCoupon = () => {
         setCouponError('');
@@ -75,7 +77,7 @@ const Cart = () => {
 
     const handleCheckout = () => {
         if (!isAuthenticated) {
-            alert('Please login to proceed to checkout');
+            showAlert('Please login to proceed to checkout');
             navigate('/login');
             return;
         }
@@ -85,7 +87,7 @@ const Cart = () => {
     const handleConfirmAddress = (e) => {
         e.preventDefault();
         if (!address.street || !address.city || !address.phone || !address.zipCode) {
-            alert('Please fill in all required address fields');
+            showAlert('Please fill in all required address fields');
             return;
         }
         setCheckoutStep('payment');
@@ -98,9 +100,10 @@ const Cart = () => {
                 { amount: sanitizedAmount },
                 { headers: { 'x-auth-token': localStorage.getItem('token') } }
             );
+            console.log('Order API Response:', orderRes.data);
 
             if (!orderRes.data.success) {
-                alert('Order creation failed');
+                showAlert('Order creation failed');
                 return;
             }
 
@@ -135,7 +138,7 @@ const Cart = () => {
                             clearCart();
                         }
                     } catch (err) {
-                        alert('Payment verification failed.');
+                        showAlert('Payment verification failed.');
                     }
                 },
                 prefill: {
@@ -150,7 +153,7 @@ const Cart = () => {
             rzp.open();
 
         } catch (err) {
-            alert('Failed to initiate payment.');
+            showAlert('Failed to initiate payment.');
         }
     };
 

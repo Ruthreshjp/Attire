@@ -88,16 +88,14 @@ const Navbar = ({ forceDark = false }) => {
                <div className="user-dropdown">
                   <div className="profile-trigger">
                      <span className="profile-name">{user.name.split(' ')[0]}</span>
-                     <div className="icon-btn profile-btn">
-                        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
-                           <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>
-                        </svg>
+                     <div className="nav-profile-initial">
+                        {user.name.charAt(0).toUpperCase()}
                      </div>
                   </div>
                   <div className="dropdown-menu">
                      <div className="dropdown-header">
                         <strong>{user.name}</strong>
-                        <span>Member Since 2024</span>
+                        <span>Member Since {user.createdAt ? new Date(user.createdAt).toLocaleDateString('en-US', { month: 'long', year: 'numeric' }) : 'March 2024'}</span>
                      </div>
                      <div className="dropdown-links">
                         <Link to="/profile">
@@ -108,7 +106,7 @@ const Navbar = ({ forceDark = false }) => {
                            <div className="drop-link-icon">📦</div>
                            <span>Order History</span>
                         </Link>
-                        {user.role === 1 && (
+                        {user.role == 1 && (
                            <Link to="/admin" className="admin-link">
                               <div className="drop-link-icon">⚡</div>
                               <span>Admin Dashboard</span>
@@ -141,9 +139,12 @@ const Navbar = ({ forceDark = false }) => {
             {user ? (
                <>
                  <li className="sep"></li>
-                 <li><Link to="/profile" onClick={() => setIsMenuOpen(false)}>Profile</Link></li>
-                 <li><Link to="/my-orders" onClick={() => setIsMenuOpen(false)}>Orders</Link></li>
-                 <li><button onClick={logout}>Logout</button></li>
+                  <li><Link to="/profile" onClick={() => setIsMenuOpen(false)}>Profile Settings</Link></li>
+                  <li><Link to="/my-orders" onClick={() => setIsMenuOpen(false)}>Order History</Link></li>
+                  {user.role == 1 && (
+                     <li><Link to="/admin" onClick={() => setIsMenuOpen(false)} style={{ color: '#c5a059' }}>Admin Dashboard</Link></li>
+                  )}
+                  <li><button onClick={logout}>Sign Out</button></li>
                </>
             ) : (
                <li><Link to="/login" onClick={() => setIsMenuOpen(false)}>Sign In</Link></li>
@@ -244,6 +245,15 @@ const Navbar = ({ forceDark = false }) => {
           height: 18px; border-radius: 50%; display: flex; align-items: center;
           justify-content: center; box-shadow: 0 4px 10px rgba(197,160,89,0.3);
         }
+
+        .nav-profile-initial {
+          width: 32px; height: 32px; background: #c5a059; color: #000;
+          display: flex; align-items: center; justify-content: center;
+          border-radius: 50%; font-family: 'Playfair Display', serif;
+          font-size: 0.9rem; font-weight: 800; border: 1px solid #000;
+        }
+        .premium-nav.scrolled .nav-profile-initial,
+        .premium-nav.force-dark .nav-profile-initial { background: #c5a059; color: #000; border-color: #fff; }
 
         .user-dropdown { position: relative; cursor: pointer; }
         .profile-trigger { display: flex; align-items: center; gap: 12px; }

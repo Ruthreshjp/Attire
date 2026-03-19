@@ -69,6 +69,10 @@ app.use((err, req, res, next) => {
     });
 });
 
+// Initialize Cron Jobs
+const initAbandonedCartCron = require('./cronJobs');
+initAbandonedCartCron();
+
 const PORT = process.env.PORT || 5000;
 
 app.listen(PORT, () => {

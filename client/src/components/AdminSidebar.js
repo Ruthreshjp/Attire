@@ -1,8 +1,11 @@
 import { NavLink, useNavigate } from 'react-router-dom';
+import { useContext } from 'react';
+import { AuthContext } from '../context/AuthContext';
 import './AdminSidebar.css';
 
 const AdminSidebar = () => {
     const navigate = useNavigate();
+    const { user } = useContext(AuthContext);
 
     return (
         <aside className="admin-sidebar">
@@ -12,7 +15,6 @@ const AdminSidebar = () => {
                 </div>
                 <div className="brand-info">
                     <h2>ATTIRE</h2>
-                    <span className="control-badge">Management Hub</span>
                 </div>
             </div>
 
@@ -55,9 +57,16 @@ const AdminSidebar = () => {
                 </nav>
 
                 <nav className="sidebar-nav-group footer-links">
-                    <NavLink to="/profile" className="nav-link">
-                        <span className="link-icon">👤</span> 
-                        <span className="link-text">Executive Access</span>
+                    <NavLink to="/profile" className="nav-link profile-v-link">
+                        <div className="admin-profile-meta">
+                            <div className="admin-initial-vessel">
+                                {user?.name?.charAt(0).toUpperCase() || 'A'}
+                            </div>
+                            <div className="admin-meta-info">
+                                <span className="admin-u-name">{user?.name || 'Admin'}</span>
+                                <span className="admin-u-role">Security Level: Gold</span>
+                            </div>
+                        </div>
                     </NavLink>
                     <NavLink to="/" className="nav-link storefront-link">
                         <span className="link-icon">🌐</span> 

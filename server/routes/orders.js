@@ -44,11 +44,49 @@ router.post('/', auth, async (req, res) => {
         });
 
         const createdOrder = await order.save();
+        console.log('Manual Order Saved!', createdOrder._id);
+
+        // Update Product Stock and Sold count
+        (async () => {
+            try {
+                const Product = require('../models/Product');
+                for (const item of orderItems) {
+                    await Product.findByIdAndUpdate(item.id || item._id, {
+                        $inc: { 
+                            stock: -item.quantity,
+                            sold: item.quantity
+                        }
+                    });
+                }
+                console.log('Stock and Sold counts updated (Manual Order)');
+            } catch (stockErr) {
+                console.error('Error updating stock/sold (Manual Order):', stockErr);
+            }
+        })();
 
         // Clear user's cart after successful order
         const user = await User.findById(req.user.id);
-        user.cart = [];
-        await user.save();
+        if (user) {
+            user.cart = [];
+            await user.save();
+        }
+
+        // Send Confirmation Emails in background
+        (async () => {
+            try {
+                const { generateInvoice } = require('../utils/pdfGenerator');
+                const { sendOrderConfirmation, sendAdminNewOrder } = require('../utils/emailService');
+                
+                const pdfBuffer = await generateInvoice(createdOrder);
+                
+                if (user && user.email) {
+                    sendOrderConfirmation(user.email, createdOrder, pdfBuffer).catch(e => console.error('BG Order confirmation failed:', e));
+                }
+                sendAdminNewOrder(createdOrder, pdfBuffer).catch(e => console.error('BG Admin order email failed:', e));
+            } catch (innerErr) {
+                console.error('BG Order Processing Error:', innerErr);
+            }
+        })();
 
         res.status(201).json({ success: true, order: createdOrder });
     } catch (err) {
@@ -98,7 +136,7 @@ router.get('/:id', auth, async (req, res) => {
 // @access  Private
 router.put('/:id/cancel', auth, async (req, res) => {
     try {
-        const { accountName, accountNumber, ifscCode } = req.body;
+        const { accountName, accountNumber, ifscCode, reason } = req.body;
         
         let order = await Order.findById(req.params.id);
 
@@ -111,11 +149,15 @@ router.put('/:id/cancel', auth, async (req, res) => {
             return res.status(401).json({ success: false, message: 'Not authorized' });
         }
 
-        // Check if cancellable (e.g. within 2 days of creation)
+        // Check if eligible for cancel (pending/shipped/processing AND NOT delivered/processed)
+        if (order.orderStatus === 'delivered' || order.orderStatus === 'processed') {
+            return res.status(400).json({ success: false, message: 'Delivered orders cannot be cancelled. Use return option instead.' });
+        }
+
+        // Check if cancellable (within 2 days of creation)
         const orderDate = new Date(order.createdAt);
         const currentDate = new Date();
-        const diffTime = Math.abs(currentDate - orderDate);
-        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)); 
+        const diffDays = Math.ceil(Math.abs(currentDate - orderDate) / (1000 * 60 * 60 * 24)); 
         
         if (diffDays > 2) {
             return res.status(400).json({ success: false, message: 'Order can only be cancelled within 2 days of placement' });
@@ -133,13 +175,84 @@ router.put('/:id/cancel', auth, async (req, res) => {
             accountName,
             accountNumber,
             ifscCode,
+            cancelReason: reason || '',
             refundStatus: 'pending',
             refundAmount: order.total > 50 ? order.total - 50 : 0
         };
 
         await order.save();
 
-        res.json({ success: true, message: 'Order cancelled successfully. Refund initiated processing.', order });
+        // Send Cancellation Emails in background
+        (async () => {
+            try {
+                const { sendCancelRequestUser, sendCancelRequestAdmin } = require('../utils/emailService');
+                const user = await User.findById(req.user.id);
+                
+                sendCancelRequestUser(user.email, order.orderNumber).catch(e => console.error('BG Cancel user email failed:', e));
+                sendCancelRequestAdmin(order.orderNumber).catch(e => console.error('BG Cancel admin email failed:', e));
+            } catch (innerErr) {
+                console.error('BG Cancel Processing Error:', innerErr);
+            }
+        })();
+
+        res.json({ success: true, message: 'Order cancelled successfully. Refund initiated processing. Please wait for confirmation from admin.', order });
+    } catch (err) {
+        console.error(err.message);
+        res.status(500).send('Server Error');
+    }
+});
+
+// @route   PUT /api/orders/:id/return
+// @desc    Initiate product return
+// @access  Private
+router.put('/:id/return', auth, async (req, res) => {
+    try {
+        const { accountName, accountNumber, ifscCode, reason } = req.body;
+        
+        let order = await Order.findById(req.params.id);
+
+        if (!order) {
+            return res.status(404).json({ success: false, message: 'Order not found' });
+        }
+
+        // Check user ownership
+        if (order.user.toString() !== req.user.id) {
+            return res.status(401).json({ success: false, message: 'Not authorized' });
+        }
+
+        // Check if eligible for return (delivered/processed)
+        if (order.orderStatus !== 'delivered' && order.orderStatus !== 'processed') {
+            return res.status(400).json({ success: false, message: 'Only delivered products can be returned.' });
+        }
+
+        order.orderStatus = 'return_pending';
+        
+        // Setup refund details
+        order.refundDetails = {
+            accountName,
+            accountNumber,
+            ifscCode,
+            returnReason: reason || '',
+            refundStatus: 'pending',
+            refundAmount: order.total // Full refund for returns usually, or as per policy
+        };
+
+        await order.save();
+
+        // Send Return Emails in background
+        (async () => {
+            try {
+                const { sendReturnRequestUser, sendReturnRequestAdmin } = require('../utils/emailService');
+                const user = await User.findById(req.user.id);
+                
+                sendReturnRequestUser(user.email, order.orderNumber).catch(e => console.error('BG Return user email failed:', e));
+                sendReturnRequestAdmin(order.orderNumber).catch(e => console.error('BG Return admin email failed:', e));
+            } catch (innerErr) {
+                console.error('BG Return Processing Error:', innerErr);
+            }
+        })();
+
+        res.json({ success: true, message: 'Return initiated successfully. Your amount will be refunded after we receive the product and completion of quality checks.', order });
     } catch (err) {
         console.error(err.message);
         res.status(500).send('Server Error');

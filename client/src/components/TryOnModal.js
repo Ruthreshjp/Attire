@@ -47,6 +47,10 @@ const TryOnModal = ({ isOpen, onClose, product, selectedColor }) => {
                 throw new Error("Product image not found");
             }
 
+            if (!clothImageUrl.startsWith('http') && !clothImageUrl.startsWith('data:')) {
+                clothImageUrl = `${process.env.REACT_APP_API_URL}/${clothImageUrl.replace(/^\//, '')}`;
+            }
+
             console.log("Connecting to Hugging Face Space (yisol/IDM-VTON)...");
             const client = await Client.connect("yisol/IDM-VTON", {
                 hf_token: process.env.REACT_APP_HF_TOKEN

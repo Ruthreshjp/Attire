@@ -59,6 +59,17 @@ app.get('/', (req, res) => {
     res.json({ message: 'Attire E-commerce API is running' });
 });
 
+// Email Diagnosis Route
+app.get('/api/test-email', async (req, res) => {
+    try {
+        const { sendVerificationCode } = require('./utils/emailService');
+        await sendVerificationCode('travelzonnee@gmail.com', '999999');
+        res.json({ success: true, message: 'Diagnosed successfully: Port 587 is open and Email was sent!' });
+    } catch (e) {
+        res.status(500).json({ success: false, error: e.message, code: e.code, stack: e.stack });
+    }
+});
+
 // Error Handling Middleware
 app.use((err, req, res, next) => {
     console.error(err.stack);

@@ -106,7 +106,7 @@ const Navbar = ({ forceDark = false }) => {
                            <div className="drop-link-icon">📦</div>
                            <span>Order History</span>
                         </Link>
-                        {user.role == 1 && (
+                        {user.role === 1 && (
                            <Link to="/admin" className="admin-link">
                               <div className="drop-link-icon">⚡</div>
                               <span>Admin Dashboard</span>
@@ -141,7 +141,7 @@ const Navbar = ({ forceDark = false }) => {
                  <li className="sep"></li>
                   <li><Link to="/profile" onClick={() => setIsMenuOpen(false)}>Profile Settings</Link></li>
                   <li><Link to="/my-orders" onClick={() => setIsMenuOpen(false)}>Order History</Link></li>
-                  {user.role == 1 && (
+                  {user.role === 1 && (
                      <li><Link to="/admin" onClick={() => setIsMenuOpen(false)} style={{ color: '#c5a059' }}>Admin Dashboard</Link></li>
                   )}
                   <li><button onClick={logout}>Sign Out</button></li>

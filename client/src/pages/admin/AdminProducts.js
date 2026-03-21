@@ -79,29 +79,6 @@ const AdminProducts = () => {
         }
     };
 
-    const handleAddImage = () => {
-        setNewProduct({ ...newProduct, images: [...newProduct.images, { url: '', alt: '', uploadMethod: 'url' }] });
-    };
-
-    const handleImageChange = (index, field, value) => {
-        const images = [...newProduct.images];
-        images[index][field] = value;
-        if (field === 'url') images[index].alt = newProduct.name;
-        setNewProduct({ ...newProduct, images });
-    };
-
-    const handleProductImageUpload = (index, e) => {
-        const file = e.target.files[0];
-        if (file) {
-            const reader = new FileReader();
-            reader.onloadend = () => {
-                handleImageChange(index, 'url', reader.result);
-            };
-            reader.readAsDataURL(file);
-        }
-    };
-
-
     const handleAddColor = () => {
         setNewProduct({
             ...newProduct,

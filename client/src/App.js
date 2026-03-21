@@ -1,5 +1,5 @@
-import React, { useEffect, useState, lazy, Suspense } from 'react';
-import { Routes, Route, useLocation } from 'react-router-dom';
+import React, { lazy, Suspense } from 'react';
+import { Routes, Route } from 'react-router-dom';
 import Home from './pages/Home';
 import Cart from './pages/Cart';
 import Wishlist from './pages/Wishlist';

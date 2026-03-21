@@ -57,10 +57,11 @@ const TryOnModal = ({ isOpen, onClose, product, selectedColor }) => {
             console.log("Processing cloth image via proxy: ", proxyUrl);
             let clothResponse;
             try {
+                console.log("EXACT PROXY URL ATTEMPTED:", proxyUrl);
                 clothResponse = await fetch(proxyUrl);
             } catch (networkErr) {
                 console.error("Proxy network fetch failed:", networkErr);
-                throw new Error("Local Proxy Network Error: Could not reach the backend proxy server to securely download the image. Check your internet connection or backend server status.");
+                throw new Error(`Local Proxy Network Error (${networkErr.message || networkErr}): URL Attempted: ${proxyUrl}. Check internet or backend server.`);
             }
             
             if (!clothResponse.ok) {

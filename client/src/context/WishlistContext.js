@@ -15,7 +15,7 @@ export const WishlistProvider = ({ children }) => {
         const loadWishlist = async () => {
             if (isAuthenticated) {
                 try {
-                    const res = await axios.get('http://localhost:5000/api/wishlist', {
+                    const res = await axios.get(`${process.env.REACT_APP_API_URL}/api/wishlist`, {
                         headers: { 'x-auth-token': localStorage.getItem('token') }
                     });
                     if (res.data.success) {
@@ -72,7 +72,7 @@ export const WishlistProvider = ({ children }) => {
 
         if (isAuthenticated) {
             try {
-                const res = await axios.post(`http://localhost:5000/api/wishlist/${productId}`, {}, {
+                const res = await axios.post(`${process.env.REACT_APP_API_URL}/api/wishlist/${productId}`, {}, {
                     headers: { 'x-auth-token': localStorage.getItem('token') }
                 });
                 if (res.data.success) {
@@ -144,7 +144,7 @@ export const WishlistProvider = ({ children }) => {
 
         if (isAuthenticated) {
             try {
-                const res = await axios.delete(`http://localhost:5000/api/wishlist/${targetId}`, {
+                const res = await axios.delete(`${process.env.REACT_APP_API_URL}/api/wishlist/${targetId}`, {
                     headers: { 'x-auth-token': localStorage.getItem('token') }
                 });
                 if (res.data.success) {

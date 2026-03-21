@@ -14,7 +14,7 @@ export const CartProvider = ({ children }) => {
         const loadCart = async () => {
             if (isAuthenticated) {
                 try {
-                    const res = await axios.get('http://localhost:5000/api/cart', {
+                    const res = await axios.get(`${process.env.REACT_APP_API_URL}/api/cart`, {
                         headers: { 'x-auth-token': localStorage.getItem('token') }
                     });
                     if (res.data.success) {
@@ -94,7 +94,7 @@ export const CartProvider = ({ children }) => {
 
         if (isAuthenticated) {
             try {
-                const res = await axios.post('http://localhost:5000/api/cart', {
+                const res = await axios.post(`${process.env.REACT_APP_API_URL}/api/cart`, {
                     productId,
                     quantity: 1,
                     size: finalSize,
@@ -198,7 +198,7 @@ export const CartProvider = ({ children }) => {
             if (!item) return;
 
             try {
-                const res = await axios.delete('http://localhost:5000/api/cart', {
+                const res = await axios.delete(`${process.env.REACT_APP_API_URL}/api/cart`, {
                     data: { productId: item.id, size: item.size, color: item.color },
                     headers: { 'x-auth-token': localStorage.getItem('token') }
                 });
@@ -220,7 +220,7 @@ export const CartProvider = ({ children }) => {
 
         if (isAuthenticated) {
             try {
-                const res = await axios.put('http://localhost:5000/api/cart/update', {
+                const res = await axios.put(`${process.env.REACT_APP_API_URL}/api/cart/update`, {
                     productId: item.id,
                     size: item.size,
                     color: item.color,
@@ -251,7 +251,7 @@ export const CartProvider = ({ children }) => {
     const clearCart = async () => {
         if (isAuthenticated) {
             try {
-                await axios.delete('http://localhost:5000/api/cart/clear', {
+                await axios.delete(`${process.env.REACT_APP_API_URL}/api/cart/clear`, {
                     headers: { 'x-auth-token': localStorage.getItem('token') }
                 });
                 setCartItems([]);

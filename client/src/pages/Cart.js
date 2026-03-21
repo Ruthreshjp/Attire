@@ -59,7 +59,7 @@ const Cart = () => {
         const fetchAddressHistory = async () => {
             if (isAuthenticated) {
                 try {
-                    const res = await axios.get('http://localhost:5000/api/orders', {
+                    const res = await axios.get(`${process.env.REACT_APP_API_URL}/api/orders`, {
                         headers: { 'x-auth-token': localStorage.getItem('token') }
                     });
                     if (res.data.success) {
@@ -96,7 +96,7 @@ const Cart = () => {
     const handlePayment = async () => {
         try {
             const sanitizedAmount = Math.round(total);
-            const orderRes = await axios.post('http://localhost:5000/api/payment/create-order',
+            const orderRes = await axios.post(`${process.env.REACT_APP_API_URL}/api/payment/create-order`,
                 { amount: sanitizedAmount },
                 { headers: { 'x-auth-token': localStorage.getItem('token') } }
             );
@@ -118,7 +118,7 @@ const Cart = () => {
                 order_id: order.id,
                 handler: async (response) => {
                     try {
-                        const verifyRes = await axios.post('http://localhost:5000/api/payment/verify', {
+                        const verifyRes = await axios.post(`${process.env.REACT_APP_API_URL}/api/payment/verify`, {
                             razorpay_order_id: response.razorpay_order_id,
                             razorpay_payment_id: response.razorpay_payment_id,
                             razorpay_signature: response.razorpay_signature,

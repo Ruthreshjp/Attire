@@ -11,7 +11,7 @@ const ProductCard = ({ product }) => {
         if (!url) return 'https://via.placeholder.com/600x800?text=No+Image';
         if (typeof url !== 'string') return url.url || 'https://via.placeholder.com/600x800?text=No+Image';
         if (url.startsWith('http') || url.startsWith('data:')) return url;
-        return `http://localhost:5000/${url}`;
+        return `${process.env.REACT_APP_API_URL}/${url}`;
     };
 
     const displayImage = getFullImgUrl(product.images?.[0] || product.image);

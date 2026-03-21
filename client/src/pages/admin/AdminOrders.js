@@ -14,7 +14,7 @@ const AdminOrders = () => {
 
     const fetchOrders = async () => {
         try {
-            const res = await axios.get('http://localhost:5000/api/admin/orders', {
+            const res = await axios.get(`${process.env.REACT_APP_API_URL}/api/admin/orders`, {
                 headers: { 'x-auth-token': localStorage.getItem('token') }
             });
             if (res.data.success) {
@@ -32,7 +32,7 @@ const AdminOrders = () => {
     const handleDeliver = (orderId) => {
         showConfirm('Are you sure the product is delivered?', async () => {
             try {
-                const res = await axios.put(`http://localhost:5000/api/admin/orders/${orderId}/status`, {
+                const res = await axios.put(`${process.env.REACT_APP_API_URL}/api/admin/orders/${orderId}/status`, {
                     status: 'processed' 
                 }, {
                     headers: { 'x-auth-token': localStorage.getItem('token') }
@@ -53,7 +53,7 @@ const AdminOrders = () => {
             const order = orders.find(o => o._id === orderId || o.id === orderId);
             const isCancelled = order?.orderStatus === 'cancelled';
             
-            let url = `http://localhost:5000/api/admin/orders/${orderId}/${isCancelled ? 'refund' : 'return-action'}`;
+            let url = `${process.env.REACT_APP_API_URL}/api/admin/orders/${orderId}/${isCancelled ? 'refund' : 'return-action'}`;
             let data = isCancelled ? { status: action === 'refund' ? 'processed' : 'processing' } : { action, comment: adminComment };
             
             // If it's return-action, we always send comment. If it's refund (cancelled), we might want to add comment support later but for now we'll just follow current API.

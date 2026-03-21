@@ -18,7 +18,7 @@ const LiveEditAbout = () => {
     useEffect(() => {
         const fetchContent = async () => {
             try {
-                const res = await axios.get('http://localhost:5000/api/content/about');
+                const res = await axios.get(`${process.env.REACT_APP_API_URL}/api/content/about`);
                 const fetched = res.data;
                 const merged = {
                     ...DEFAULT_ABOUT_DATA,
@@ -56,7 +56,7 @@ const LiveEditAbout = () => {
         try {
             const token = localStorage.getItem('token');
             const { hero, sections, values, cta, promise, ...rest } = content;
-            await axios.post('http://localhost:5000/api/content', {
+            await axios.post(`${process.env.REACT_APP_API_URL}/api/content`, {
                 pageName: 'about',
                 hero, sections, values, cta, promise,
                 metadata: rest

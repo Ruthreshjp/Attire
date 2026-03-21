@@ -16,8 +16,8 @@ const Home = () => {
 
     useEffect(() => {
         Promise.all([
-            fetch('http://localhost:5000/api/products').then(r => r.json()),
-            fetch('http://localhost:5000/api/content/home').then(r => r.json())
+            fetch(`${process.env.REACT_APP_API_URL}/api/products`).then(r => r.json()),
+            fetch(`${process.env.REACT_APP_API_URL}/api/content/home`).then(r => r.json())
         ]).then(([prod, content]) => {
             if (prod.success) setProducts(prod.products);
             

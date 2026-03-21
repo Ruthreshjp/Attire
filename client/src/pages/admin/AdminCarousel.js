@@ -97,7 +97,7 @@ const AdminCarousel = () => {
 
     const fetchSlides = async () => {
         try {
-            const response = await fetch('http://localhost:5000/api/content/home');
+            const response = await fetch(`${process.env.REACT_APP_API_URL}/api/content/home`);
             const data = await response.json();
             if (response.ok && data) {
                 if (data.carousel) {
@@ -140,7 +140,7 @@ const AdminCarousel = () => {
                 label: s.label || ''
             }));
 
-            const response = await fetch('http://localhost:5000/api/content', {
+            const response = await fetch(`${process.env.REACT_APP_API_URL}/api/content`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',

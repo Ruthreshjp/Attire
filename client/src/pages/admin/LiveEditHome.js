@@ -21,8 +21,8 @@ const LiveEditHome = () => {
         const fetchData = async () => {
             try {
                 const [contentRes, productsRes] = await Promise.all([
-                    axios.get('http://localhost:5000/api/content/home'),
-                    axios.get('http://localhost:5000/api/products')
+                    axios.get(`${process.env.REACT_APP_API_URL}/api/content/home`),
+                    axios.get(`${process.env.REACT_APP_API_URL}/api/products`)
                 ]);
 
                 setProducts(productsRes.data.products || []);
@@ -114,7 +114,7 @@ const LiveEditHome = () => {
                 statsBand, newsletter, footer, ...rest 
             } = content;
             
-            await axios.post('http://localhost:5000/api/content', {
+            await axios.post(`${process.env.REACT_APP_API_URL}/api/content`, {
                 pageName: 'home',
                 ticker, hero, sections, values, cta, carousel,
                 signature, lifestyle, newArrivals, trending,

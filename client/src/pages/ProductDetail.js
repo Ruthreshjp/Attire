@@ -29,7 +29,7 @@ const ProductDetail = () => {
         window.scrollTo(0, 0);
         const fetchProduct = async () => {
             try {
-                const response = await fetch(`http://localhost:5000/api/products/${id}`);
+                const response = await fetch(`${process.env.REACT_APP_API_URL}/api/products/${id}`);
                 const data = await response.json();
                 if (data.success) {
                     setProduct(data.product);
@@ -114,7 +114,7 @@ const ProductDetail = () => {
         if (!actualUrl || typeof actualUrl !== 'string') return 'https://via.placeholder.com/800x1000?text=No+Image';
         
         if (actualUrl.startsWith('http') || actualUrl.startsWith('data:')) return actualUrl;
-        return `http://localhost:5000/${actualUrl}`;
+        return `${process.env.REACT_APP_API_URL}/${actualUrl}`;
     };
 
     return (

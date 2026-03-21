@@ -54,7 +54,7 @@ const TryOnModal = ({ isOpen, onClose, product, selectedColor }) => {
 
             console.log("Processing cloth image (bypassing CORS)...");
             // Use the backend proxy for any external images to avoid CORS
-            const proxyUrl = `http://localhost:5000/api/proxy-image?url=${encodeURIComponent(clothImageUrl)}`;
+            const proxyUrl = `${process.env.REACT_APP_API_URL}/api/proxy-image?url=${encodeURIComponent(clothImageUrl)}`;
             const clothResponse = await fetch(proxyUrl);
             const clothBlob = await clothResponse.blob();
 

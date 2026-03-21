@@ -16,7 +16,7 @@ const Products = () => {
     useScrollAnimation();
 
     useEffect(() => {
-        fetch('http://localhost:5000/api/products')
+        fetch(`${process.env.REACT_APP_API_URL}/api/products`)
             .then(r => r.json())
             .then(data => {
                 if (data.success) {
@@ -198,7 +198,7 @@ const Products = () => {
                                                 if (!img) return 'https://via.placeholder.com/100x130?text=No+Img';
                                                 const url = typeof img === 'string' ? img : (img.url || '');
                                                 if (url.startsWith('http') || url.startsWith('data:')) return url;
-                                                return `http://localhost:5000/${url}`;
+                                                return `${process.env.REACT_APP_API_URL}/${url}`;
                                             })()}
                                             alt={product.name}
                                             style={{ width: '100px', height: '130px', objectFit: 'cover', flexShrink: 0 }}

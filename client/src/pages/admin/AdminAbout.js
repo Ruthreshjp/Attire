@@ -32,7 +32,7 @@ const AdminAbout = () => {
 
     const fetchContent = async () => {
         try {
-            const response = await fetch('http://localhost:5000/api/content/about');
+            const response = await fetch(`${process.env.REACT_APP_API_URL}/api/content/about`);
             const data = await response.json();
             if (response.ok) {
                 setContent(data);
@@ -120,7 +120,7 @@ const AdminAbout = () => {
 
         try {
             const token = localStorage.getItem('token');
-            const response = await fetch('http://localhost:5000/api/content', {
+            const response = await fetch(`${process.env.REACT_APP_API_URL}/api/content`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',

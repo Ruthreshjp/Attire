@@ -30,7 +30,7 @@ const AdminDashboard = () => {
         const fetchDashboardData = async () => {
             try {
                 setLoading(true);
-                const res = await axios.get('http://localhost:5000/api/admin/dashboard', {
+                const res = await axios.get(`${process.env.REACT_APP_API_URL}/api/admin/dashboard`, {
                     headers: { 'x-auth-token': localStorage.getItem('token') }
                 });
                 if (res.data.success) {
@@ -150,7 +150,7 @@ const AdminDashboard = () => {
             const order = rawData.orders.find(o => o._id === orderId);
             const isCancelled = order?.orderStatus === 'cancelled';
             
-            const url = `http://localhost:5000/api/admin/orders/${orderId}/${isCancelled ? 'refund' : 'return-action'}`;
+            const url = `${process.env.REACT_APP_API_URL}/api/admin/orders/${orderId}/${isCancelled ? 'refund' : 'return-action'}`;
             const data = isCancelled ? { status: action === 'refund' ? 'processed' : 'processing' } : { action, comment: adminComment };
 
             const res = await axios.put(url, data, {
@@ -166,7 +166,7 @@ const AdminDashboard = () => {
 
                 // Refresh dashboard data silently
                 try {
-                    const resData = await axios.get('http://localhost:5000/api/admin/dashboard', {
+                    const resData = await axios.get(`${process.env.REACT_APP_API_URL}/api/admin/dashboard`, {
                         headers: { 'x-auth-token': localStorage.getItem('token') }
                     });
                     if (resData.data && resData.data.success) {

@@ -38,7 +38,7 @@ const AdminProducts = () => {
 
     const fetchProducts = async () => {
         try {
-            const response = await fetch('http://localhost:5000/api/products');
+            const response = await fetch(`${process.env.REACT_APP_API_URL}/api/products`);
             const data = await response.json();
             if (data.success) {
                 setProducts(data.products);
@@ -210,8 +210,8 @@ const AdminProducts = () => {
 
         try {
             const url = isEditing
-                ? `http://localhost:5000/api/products/${editingId}`
-                : 'http://localhost:5000/api/products';
+                ? `${process.env.REACT_APP_API_URL}/api/products/${editingId}`
+                : `${process.env.REACT_APP_API_URL}/api/products`;
 
             const response = await fetch(url, {
                 method: isEditing ? 'PUT' : 'POST',
@@ -253,7 +253,7 @@ const AdminProducts = () => {
     const handleDelete = async (id) => {
         showConfirm('Are you sure you want to delete this product?', async () => {
             try {
-                const response = await fetch(`http://localhost:5000/api/products/${id}`, {
+                const response = await fetch(`${process.env.REACT_APP_API_URL}/api/products/${id}`, {
                     method: 'DELETE',
                     headers: { 'x-auth-token': localStorage.getItem('token') }
                 });

@@ -60,7 +60,7 @@ const OffersCarousel = () => {
     const navigate = useNavigate();
 
     useEffect(() => {
-        fetch('http://localhost:5000/api/products')
+        fetch(`${process.env.REACT_APP_API_URL}/api/products`)
             .then(r => r.json())
             .then(data => {
                 if (data.success) {

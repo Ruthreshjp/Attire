@@ -55,7 +55,7 @@ const MyOrders = () => {
             showAlert('Please fill all bank details and provide a reason'); return;
         }
         try {
-            const res = await axios.put(`http://localhost:5000/api/orders/${orderId}/cancel`, cancelForm, {
+            const res = await axios.put(`${process.env.REACT_APP_API_URL}/api/orders/${orderId}/cancel`, cancelForm, {
                 headers: { 'x-auth-token': localStorage.getItem('token') }
             });
             if (res.data.success) {
@@ -75,7 +75,7 @@ const MyOrders = () => {
             showAlert('Please fill all bank details and provide a reason'); return;
         }
         try {
-            const res = await axios.put(`http://localhost:5000/api/orders/${orderId}/return`, returnForm, {
+            const res = await axios.put(`${process.env.REACT_APP_API_URL}/api/orders/${orderId}/return`, returnForm, {
                 headers: { 'x-auth-token': localStorage.getItem('token') }
             });
             if (res.data.success) {
@@ -94,7 +94,7 @@ const MyOrders = () => {
         const fetchOrders = async () => {
             if (isAuthenticated) {
                 try {
-                    const res = await axios.get('http://localhost:5000/api/orders', {
+                    const res = await axios.get(`${process.env.REACT_APP_API_URL}/api/orders`, {
                         headers: { 'x-auth-token': localStorage.getItem('token') }
                     });
                     if (res.data.success) setOrders(res.data.orders);

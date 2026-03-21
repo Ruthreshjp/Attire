@@ -11,7 +11,7 @@ const About = () => {
     useScrollAnimation();
 
     useEffect(() => {
-        fetch('http://localhost:5000/api/content/about')
+        fetch(`${process.env.REACT_APP_API_URL}/api/content/about`)
             .then(r => r.json())
             .then(content => {
                 if (content && !content.message) { // Check if it's not an error message

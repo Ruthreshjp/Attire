@@ -56,11 +56,18 @@ const TryOnModal = ({ isOpen, onClose, product, selectedColor }) => {
                 hf_token: process.env.REACT_APP_HF_TOKEN
             });
 
-            console.log("Processing cloth image (bypassing CORS)...");
-            // Use the backend proxy for any external images to avoid CORS
             const proxyUrl = `${process.env.REACT_APP_API_URL}/api/proxy-image?url=${encodeURIComponent(clothImageUrl)}`;
+            console.log("Processing cloth image via proxy: ", proxyUrl);
             const clothResponse = await fetch(proxyUrl);
+            
+            if (!clothResponse.ok) {
+                const errTxt = await clothResponse.text();
+                throw new Error(`Failed to download product image securely. (Proxy err: ${clothResponse.status} ${errTxt})`);
+            }
+            
             const clothBlob = await clothResponse.blob();
+            // Gradio sometimes fails if a plain Blob is sent without a filename
+            const clothFile = new File([clothBlob], "garment.jpg", { type: clothBlob.type || "image/jpeg" });
 
             console.log("Sending request to AI model...");
             const result = await client.predict("/tryon", [
@@ -69,7 +76,7 @@ const TryOnModal = ({ isOpen, onClose, product, selectedColor }) => {
                     "layers": [],
                     "composite": null
                 },
-                clothBlob,
+                clothFile,
                 product.name || "garment",
                 true,
                 false,
@@ -95,6 +102,8 @@ const TryOnModal = ({ isOpen, onClose, product, selectedColor }) => {
                 setError("Hugging Face Space authentication failed. The set token might be invalid.");
             } else if (err.message?.includes("Paused")) {
                 setError("The Virtual Try-On service is currently sleeping/paused. Please contact support or try later.");
+            } else if (err.message?.includes("Failed to fetch")) {
+                setError(`Connection Error: The AI service (Hugging Face) rejected the connection. This usually happens if you have an adblocker enabled or the AI space 'yisol/IDM-VTON' is currently asleep/paused by Hugging Face.`);
             } else {
                 setError(`AI Error: ${err.message || "Something went wrong. Please check your internet and try again."}`);
             }

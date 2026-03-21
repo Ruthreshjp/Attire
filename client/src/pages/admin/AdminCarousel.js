@@ -87,7 +87,7 @@ const AdminCarousel = () => {
 
     const [homeContent, setHomeContent] = useState(DEFAULT_HOME_CONTENT);
     const [isDirty, setIsDirty] = useState(false);
-    const { showAlert } = useNotification();
+    const { showAlert, showConfirm } = useNotification();
 
     const markDirty = () => setIsDirty(true);
 
@@ -260,11 +260,11 @@ const AdminCarousel = () => {
     };
 
     const handleDelete = async (id) => {
-        if (window.confirm('Are you sure you want to delete this slide?')) {
+        showConfirm('Are you sure you want to delete this slide?', async () => {
             const updatedSlides = slides.filter(s => s.id !== id);
             setSlides(updatedSlides);
             await saveToBackend(updatedSlides);
-        }
+        });
     };
 
     return (

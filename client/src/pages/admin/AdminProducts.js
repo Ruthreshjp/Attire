@@ -1,12 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import AdminSidebar from '../../components/AdminSidebar';
 import './AdminDashboard.css';
+import { useNotification } from '../../context/NotificationContext';
 
 const AdminProducts = () => {
     const [products, setProducts] = useState([]);
     const [isAdding, setIsAdding] = useState(false);
     const [isEditing, setIsEditing] = useState(false);
     const [editingId, setEditingId] = useState(null);
+    const { showAlert, showConfirm } = useNotification();
 
     const [newProduct, setNewProduct] = useState({
         name: '',
@@ -249,20 +251,22 @@ const AdminProducts = () => {
     };
 
     const handleDelete = async (id) => {
-        if (!window.confirm('Are you sure you want to delete this product?')) return;
-
-        try {
-            const response = await fetch(`http://localhost:5000/api/products/${id}`, {
-                method: 'DELETE',
-                headers: { 'x-auth-token': localStorage.getItem('token') }
-            });
-            const data = await response.json();
-            if (data.success) {
-                setProducts(products.filter(p => p._id !== id));
+        showConfirm('Are you sure you want to delete this product?', async () => {
+            try {
+                const response = await fetch(`http://localhost:5000/api/products/${id}`, {
+                    method: 'DELETE',
+                    headers: { 'x-auth-token': localStorage.getItem('token') }
+                });
+                const data = await response.json();
+                if (data.success) {
+                    setProducts(products.filter(p => p._id !== id));
+                    showAlert('Product successfully removed.', 'success');
+                }
+            } catch (err) {
+                console.error('Error deleting product:', err);
+                showAlert('Failed to delete product.', 'error');
             }
-        } catch (err) {
-            console.error('Error deleting product:', err);
-        }
+        });
     };
 
     const resetForm = () => {

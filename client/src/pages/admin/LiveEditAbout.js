@@ -13,7 +13,7 @@ const LiveEditAbout = () => {
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
     const [isDirty, setIsDirty] = useState(false);
-    const { showAlert } = useNotification();
+    const { showAlert, showConfirm } = useNotification();
 
     useEffect(() => {
         const fetchContent = async () => {
@@ -80,9 +80,9 @@ const LiveEditAbout = () => {
     };
 
     const handleRemoveSection = (idx) => {
-        if (window.confirm('Delete this chapter?')) {
+        showConfirm('Are you sure you want to delete this chapter?', () => {
             handleChange('sections', content.sections.filter((_, i) => i !== idx));
-        }
+        });
     };
 
     if (loading) return <div className="live-edit-loading">Initializing About Canvas...</div>;

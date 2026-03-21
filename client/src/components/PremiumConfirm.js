@@ -9,10 +9,12 @@ const PremiumConfirm = () => {
     // Safety lockout to prevent ghost clicks
     React.useEffect(() => {
         if (confirm) {
+            setLoading(false);
             const timer = setTimeout(() => setCanInteract(true), 500);
             return () => clearTimeout(timer);
         } else {
             setCanInteract(false);
+            setLoading(false);
         }
     }, [confirm]);
 

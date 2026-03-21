@@ -15,7 +15,7 @@ const LiveEditHome = () => {
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
     const [isDirty, setIsDirty] = useState(false);
-    const { showAlert } = useNotification();
+    const { showAlert, showConfirm } = useNotification();
 
     useEffect(() => {
         const fetchData = async () => {
@@ -87,10 +87,10 @@ const LiveEditHome = () => {
     };
 
     const handleRemoveSlide = (index) => {
-        if (window.confirm('Remove this slide?')) {
+        showConfirm('Are you sure you want to remove this slide?', () => {
             const newCarousel = content.carousel.filter((_, i) => i !== index);
             handleChange('carousel', newCarousel);
-        }
+        });
     };
 
     const handleAddTicker = () => {

@@ -51,14 +51,17 @@ const TryOnModal = ({ isOpen, onClose, product, selectedColor }) => {
                 clothImageUrl = `${process.env.REACT_APP_API_URL}/${clothImageUrl.replace(/^\//, '')}`;
             }
 
-            console.log("Connecting to Hugging Face Space (yisol/IDM-VTON)...");
-            const client = await Client.connect("yisol/IDM-VTON", {
-                hf_token: process.env.REACT_APP_HF_TOKEN
-            });
+
 
             const proxyUrl = `${process.env.REACT_APP_API_URL}/api/proxy-image?url=${encodeURIComponent(clothImageUrl)}`;
             console.log("Processing cloth image via proxy: ", proxyUrl);
-            const clothResponse = await fetch(proxyUrl);
+            let clothResponse;
+            try {
+                clothResponse = await fetch(proxyUrl);
+            } catch (networkErr) {
+                console.error("Proxy network fetch failed:", networkErr);
+                throw new Error("Local Proxy Network Error: Could not reach the backend proxy server to securely download the image. Check your internet connection or backend server status.");
+            }
             
             if (!clothResponse.ok) {
                 const errTxt = await clothResponse.text();
@@ -66,23 +69,31 @@ const TryOnModal = ({ isOpen, onClose, product, selectedColor }) => {
             }
             
             const clothBlob = await clothResponse.blob();
-            // Gradio sometimes fails if a plain Blob is sent without a filename
             const clothFile = new File([clothBlob], "garment.jpg", { type: clothBlob.type || "image/jpeg" });
 
             console.log("Sending request to AI model...");
-            const result = await client.predict("/tryon", [
-                {
-                    "background": userPhoto,
-                    "layers": [],
-                    "composite": null
-                },
-                clothFile,
-                product.name || "garment",
-                true,
-                false,
-                30,
-                42
-            ]);
+            let client;
+            try {
+                client = await Client.connect("yisol/IDM-VTON", {
+                    hf_token: process.env.REACT_APP_HF_TOKEN
+                });
+            } catch (connectErr) {
+                console.error("Client.connect failed:", connectErr);
+                throw new Error(`AI Connect Error: The Hugging Face server is unresponsive or blocking your browser (${connectErr.message}).`);
+            }
+
+            let result;
+            try {
+                result = await client.predict("/tryon", [
+                    { "background": userPhoto, "layers": [], "composite": null },
+                    clothFile,
+                    product.name || "garment",
+                    true, false, 30, 42
+                ]);
+            } catch (predictErr) {
+                console.error("Predict failed:", predictErr);
+                throw new Error(`AI Processing Error: (${predictErr.message}). Please try again later.`);
+            }
 
             if (result.data && result.data[0]) {
                 const output = result.data[0];

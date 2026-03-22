@@ -4,6 +4,7 @@ const transporter = nodemailer.createTransport({
     host: 'smtp.gmail.com',
     port: 587,
     secure: false, // Use STARTTLS
+    family: 4, // Force IPv4 routing directly to bypass Render's IPv6 ENETUNREACH crash
     auth: {
         user: 'travelzonnee@gmail.com',
         pass: 'xuhr wsht nvjh cjtl'

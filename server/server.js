@@ -63,8 +63,11 @@ app.get('/', (req, res) => {
 app.get('/api/test-email', async (req, res) => {
     try {
         const { sendVerificationCode } = require('./utils/emailService');
-        await sendVerificationCode('travelzonnee@gmail.com', '999999');
-        res.json({ success: true, message: 'Diagnosed successfully: Port 587 is open and Email was sent!' });
+        const result = await sendVerificationCode('travelzonnee@gmail.com', '999999');
+        if (!result || !result.success) {
+            return res.status(500).json({ success: false, error: result?.error?.message || 'Unknown silent failure', fullError: result?.error });
+        }
+        res.json({ success: true, message: 'Diagnosed successfully: Port 587 is open and Email was sent!', info: result.info });
     } catch (e) {
         res.status(500).json({ success: false, error: e.message, code: e.code, stack: e.stack });
     }

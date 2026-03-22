@@ -2,6 +2,10 @@ const express = require('express');
 const mongoose = require('mongoose');
 const cors = require('cors');
 const dotenv = require('dotenv');
+const dns = require('dns');
+
+// Force IPv4 Priority Globally for Render Cloud Environments
+dns.setDefaultResultOrder('ipv4first');
 
 dotenv.config();
 

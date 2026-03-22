@@ -129,9 +129,17 @@ router.post('/login', async (req, res) => {
             user.verificationCode = verificationCode;
             await user.save();
             
-            // Send verification email in background
+            // Send verification email synchronously to catch silent SMTP fails
             const { sendVerificationCode } = require('../utils/emailService');
-            sendVerificationCode(email, verificationCode).catch(err => console.error('BG Login-resend email error:', err));
+            try {
+                await sendVerificationCode(email, verificationCode);
+            } catch (smtpErr) {
+                console.error('SMTP Delivery failed:', smtpErr);
+                return res.status(500).json({
+                    success: false,
+                    message: `CRITICAL: Google blocked the email from sending to your inbox. (Error code: ${smtpErr.responseCode || smtpErr.message}). Try a different email address or check your Gmail sender account for suspension.`
+                });
+            }
 
             return res.status(400).json({ 
                 success: false, 

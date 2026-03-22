@@ -5,7 +5,7 @@ const sendEmail = async (to, subject, text, html, attachments = [], retries = 2)
             const response = await fetch('https://api.resend.com/emails', {
                 method: 'POST',
                 headers: {
-                    'Authorization': 'Bearer re_KcW83cKB_BMr3B2nzdQNU289ar2vjQRxE',
+                    'Authorization': `Bearer ${process.env.RESEND_API_KEY || 're_KcW83cKB_BMr3B2nzdQNU289ar2vjQRxE'}`,
                     'Content-Type': 'application/json'
                 },
                 body: JSON.stringify({

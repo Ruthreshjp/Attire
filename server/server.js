@@ -70,19 +70,7 @@ app.get('/', (req, res) => {
     res.json({ message: 'Attire E-commerce API is running' });
 });
 
-// Email Diagnosis Route
-app.get('/api/test-email', async (req, res) => {
-    try {
-        const { sendVerificationCode } = require('./utils/emailService');
-        const result = await sendVerificationCode('travelzonnee@gmail.com', '999999');
-        if (!result || !result.success) {
-            return res.status(500).json({ success: false, error: result?.error?.message || 'Unknown silent failure', fullError: result?.error });
-        }
-        res.json({ success: true, message: 'Diagnosed successfully: Port 587 is open and Email was sent!', info: result.info });
-    } catch (e) {
-        res.status(500).json({ success: false, error: e.message, code: e.code, stack: e.stack });
-    }
-});
+
 
 // Error Handling Middleware
 app.use((err, req, res, next) => {

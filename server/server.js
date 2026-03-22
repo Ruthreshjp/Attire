@@ -4,14 +4,21 @@ const cors = require('cors');
 const dotenv = require('dotenv');
 const dns = require('dns');
 
-// Force IPv4 Priority Globally for Render Cloud Environments
-dns.setDefaultResultOrder('ipv4first');
+// AGGRESSIVE IPv6 DISABLE: Forcing DNS to only ever return IPv4 for Node 20+
+const originalLookup = dns.lookup;
+dns.lookup = function(domain, options, callback) {
+    if (typeof options === 'function') {
+        callback = options;
+        options = {};
+    }
+    if (typeof options === 'number') options = { family: options };
+    options.family = 4; // STRICLY FORCE IPv4
+    return originalLookup(domain, options, callback);
+};
 
 dotenv.config();
 
 const app = express();
-
-// Middleware
 app.use(cors());
 app.use(express.json({ limit: '100mb' }));
 app.use(express.urlencoded({ limit: '100mb', extended: true }));

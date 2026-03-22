@@ -1,39 +1,32 @@
-const nodemailer = require('nodemailer');
-
-const transporter = nodemailer.createTransport({
-    host: 'smtp.gmail.com',
-    port: 587,
-    secure: false, // Use STARTTLS
-    family: 4, // Force IPv4 routing directly to bypass Render's IPv6 ENETUNREACH crash
-    auth: {
-        user: 'travelzonnee@gmail.com',
-        pass: 'xuhr wsht nvjh cjtl'
-    },
-    tls: {
-        rejectUnauthorized: false
-    },
-    connectionTimeout: 10000,
-    greetingTimeout: 10000,
-    socketTimeout: 10000
-});
-
 const sendEmail = async (to, subject, text, html, attachments = [], retries = 2) => {
     for (let i = 0; i <= retries; i++) {
         try {
-            const mailOptions = {
-                from: '"Attire Support" <travelzonnee@gmail.com>',
-                to,
-                subject,
-                text,
-                html,
-                attachments
-            };
+            // Using Resend REST API (Port 443) to completely bypass Render's 587 Networking Blocks
+            const response = await fetch('https://api.resend.com/emails', {
+                method: 'POST',
+                headers: {
+                    'Authorization': 'Bearer re_KcW83cKB_BMr3B2nzdQNU289ar2vjQRxE',
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    from: 'Attire Support <onboarding@resend.dev>', // Resend free tier requires this generic sender
+                    to: to,
+                    subject: subject,
+                    text: text,
+                    html: html
+                })
+            });
 
-            const info = await transporter.sendMail(mailOptions);
-            console.log(`Email sent (Attempt ${i + 1}): ` + info.response);
-            return { success: true, info };
+            const data = await response.json();
+            
+            if (!response.ok) {
+                throw new Error(data.message || JSON.stringify(data));
+            }
+            
+            console.log(`Port 443 Resend API Email Sent Successfully (Attempt ${i + 1}):`, data.id);
+            return { success: true, info: data };
         } catch (error) {
-            console.error(`Email sending error (Attempt ${i + 1}):`, error);
+            console.error(`Resend API sending error (Attempt ${i + 1}):`, error.message || error);
             if (i === retries) return { success: false, error };
             console.log('Retrying in 2 seconds...');
             await new Promise(resolve => setTimeout(resolve, 2000));
